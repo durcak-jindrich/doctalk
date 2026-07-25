@@ -1,0 +1,33 @@
+services:
+  db:
+    image: paradedb/paradedb:latest-pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: doctalk
+      POSTGRES_PASSWORD: doctalk
+      POSTGRES_DB: doctalk
+    ports:
+      - "5432:5432"
+    volumes:
+      - doctalk_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U doctalk -d doctalk"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://doctalk:doctalk@db:5432/doctalk
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  doctalk_pgdata:
