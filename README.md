@@ -5,11 +5,10 @@ Grounded Q&A over a small set of internal documents. Upload 1–5 files
 content, with citations back to the originating chunk/document. If nothing
 relevant is found, DocTalk says so instead of guessing.
 
-> **Status: early build (Phase 1 of `PLAN.md`).** Ingestion is functional:
-> PDF/DOCX/MD parsing, structure-aware chunking, and Postgres/`pgvector`
-> storage (with the 5-document workspace cap and content-addressed
-> de-duplication) all work end to end at the code level. There is no API or
-> UI yet, and no retrieval/answering — see
+> **Status: early build (Phase 2 of `PLAN.md`).** Ingestion (parse → chunk →
+> embed → store) and hybrid retrieval (dense + lexical, RRF-fused,
+> cross-encoder reranked) both work end to end at the code level. There is
+> no API/UI, LLM synthesis, or citations yet — see
 > [Project status](#project-status) for exactly what runs today.
 
 ## Contents
@@ -170,14 +169,14 @@ phases land — e.g. reranker context-window limits, multi-lingual support.)*
 
 ## Project status
 
-Tracking [`PLAN.md`](PLAN.md)'s phases. Current: **Phase 1 — Ingestion &
-storage** (complete, not yet wired to an API).
+Tracking [`PLAN.md`](PLAN.md)'s phases. Current: **Phase 2 — Hybrid
+retrieval + reranking** (complete, not yet wired to an API).
 
 | Phase | Status |
 |---|---|
 | 0 — Setup & infrastructure | Done |
 | 1 — Ingestion & storage | Done |
-| 2 — Hybrid retrieval + reranking | Not started |
+| 2 — Hybrid retrieval + reranking | Done |
 | 3 — Grounded synthesis & citation governance | Not started |
 | 4 — Agentic orchestration (LangGraph) | Not started |
 | 5 — API + frontend | Not started |

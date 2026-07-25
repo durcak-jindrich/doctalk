@@ -2,6 +2,7 @@ from psycopg import Connection
 
 _SCHEMA_SQL = """
 CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pg_search;
 
 CREATE TABLE IF NOT EXISTS documents (
     id TEXT PRIMARY KEY,
@@ -26,6 +27,9 @@ CREATE TABLE IF NOT EXISTS chunks (
 CREATE INDEX IF NOT EXISTS chunks_document_id_idx ON chunks (document_id);
 CREATE INDEX IF NOT EXISTS chunks_embedding_idx
     ON chunks USING hnsw (embedding vector_cosine_ops);
+CREATE INDEX IF NOT EXISTS chunks_bm25_idx ON chunks
+    USING bm25 (id, (text::pdb.simple('stemmer=english')))
+    WITH (key_field='id');
 """
 
 

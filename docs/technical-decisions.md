@@ -108,6 +108,24 @@ Hybrid retrieval is baseline, so persistence is baseline too.
 - **`documents.char_count`** is summed extracted-text length (post-parse),
   a rough size indicator, not the raw file's byte size.
 
+## Phase 2 implementation notes
+
+- **`pg_search` syntax verified against the running container** (0.24.3),
+  not the docs — the corpus mixes old/new syntax. Working form: `text @@@
+  'query'` to match, `paradedb.score(id)` to rank, `id` as `key_field` is
+  auto-untokenized (no cast needed).
+- **`pgvector` query params need explicit wrapping:** a bare Python list
+  in a raw `WHERE`/`ORDER BY` parameter fails (`vector <=> double
+  precision[]`) — wrap with `pgvector.Vector(...)`. Not needed for
+  inserts, where the driver infers the column type.
+- **RRF constant `k=60`** (the standard default), `leg_top_k=20` per leg,
+  reranked down to `top_k` — generous enough pool for the cross-encoder to
+  correct fusion mistakes at this document count.
+- **Rerank score doubles as a relevance signal:** an off-topic query
+  scored ~-11 vs. +1.5/+8.9 for genuine matches in manual testing — Phase
+  3's "nothing relevant, refuse" path can likely threshold on this rather
+  than inventing a separate check.
+
 ## LLM provider — OpenRouter
 
 Single OpenAI-SDK-compatible adapter behind an `LLMClient` interface;
