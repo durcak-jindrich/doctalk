@@ -5,11 +5,12 @@ Grounded Q&A over a small set of internal documents. Upload 1–5 files
 content, with citations back to the originating chunk/document. If nothing
 relevant is found, DocTalk says so instead of guessing.
 
-> **Status: early build (Phase 0 of `PLAN.md`).** Repo scaffold, config, and
-> Docker Compose setup exist; the ingestion/retrieval/synthesis pipeline
-> described below is the target architecture, not yet functional. This
-> section and the rest of the README are updated at the end of every build
-> phase — see [Project status](#project-status) for exactly what runs today.
+> **Status: early build (Phase 1 of `PLAN.md`).** Ingestion is functional:
+> PDF/DOCX/MD parsing, structure-aware chunking, and Postgres/`pgvector`
+> storage (with the 5-document workspace cap and content-addressed
+> de-duplication) all work end to end at the code level. There is no API or
+> UI yet, and no retrieval/answering — see
+> [Project status](#project-status) for exactly what runs today.
 
 ## Contents
 - [What it does](#what-it-does)
@@ -105,9 +106,10 @@ uv run pytest
 uv run ruff check .
 ```
 
-*(Today, only `/health` exists — there's no upload/ask flow to exercise
-yet. This section will gain the actual demo script — upload → ask →
-citations — once Phase 5 lands.)*
+*(Today, `/health` is the only HTTP endpoint — ingestion (parse → chunk →
+embed → store) works as a Python function, `ingest_document()`, but isn't
+wired to an API route yet. This section will gain the actual demo script —
+upload → ask → citations — once Phase 5 lands.)*
 
 ## Repository layout
 
@@ -150,26 +152,31 @@ headlines:
 ## Limitations
 
 *(Will expand with retrieval/synthesis-specific limitations as those
-phases land — e.g. reranker context-window limits, OCR/scanned-PDF
-handling, multi-lingual support.)*
+phases land — e.g. reranker context-window limits, multi-lingual support.)*
 
-- Nothing beyond a scaffold is implemented yet — see
+- No API/UI yet — ingestion only runs as a direct Python call, see
   [Project status](#project-status).
 - Single bounded 5-document workspace by design, not a document library
   (see above) — not a limitation to "fix," a scope decision.
+- PDF text extraction (`pdfplumber`) assumes a text layer; scanned/image-only
+  PDFs (no OCR step) will extract no text and fail ingestion with an
+  explicit error rather than silently producing an empty document.
+- `EMBEDDING_DIM` is fixed at schema-creation time — changing
+  `EMBEDDING_MODEL` to one with a different output dimension requires
+  dropping the `chunks` table (see `docs/technical-decisions.md`).
 - OpenRouter free-tier models are rate-limited and lower-quality than
   paid alternatives; acceptable for a demo, flagged as a production
   swap-out.
 
 ## Project status
 
-Tracking [`PLAN.md`](PLAN.md)'s phases. Current: **Phase 0 — Setup &
-infrastructure** (in progress).
+Tracking [`PLAN.md`](PLAN.md)'s phases. Current: **Phase 1 — Ingestion &
+storage** (complete, not yet wired to an API).
 
 | Phase | Status |
 |---|---|
-| 0 — Setup & infrastructure | In progress |
-| 1 — Ingestion & storage | Not started |
+| 0 — Setup & infrastructure | Done |
+| 1 — Ingestion & storage | Done |
 | 2 — Hybrid retrieval + reranking | Not started |
 | 3 — Grounded synthesis & citation governance | Not started |
 | 4 — Agentic orchestration (LangGraph) | Not started |
