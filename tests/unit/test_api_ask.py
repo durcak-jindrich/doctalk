@@ -55,10 +55,18 @@ def test_grounded_answer_carries_citations_and_observability(client):
 
     obs = body["observability"]
     assert obs["route"] == "qa"
-    assert obs["steps"] == ["route", "retrieve", "draft", "govern"]
+    assert [s["node"] for s in obs["steps"]] == ["route", "retrieve", "draft", "govern"]
     assert obs["attempts"] == 1
     assert obs["usage"]["total_tokens"] == 120
     assert obs["total_latency_ms"] >= 0
+    assert obs["trace_id"]
+
+    # Each node is separately attributable, with its own verdict.
+    by_node = {s["node"]: s for s in obs["steps"]}
+    assert by_node["retrieve"]["detail"]["chunks"] == 1
+    assert by_node["govern"]["detail"]["verdict"] == "accepted"
+    assert by_node["draft"]["detail"]["prompt_tokens"] == 100
+    assert all(s["duration_ms"] >= 0 for s in obs["steps"])
 
 
 def test_a_refusal_is_a_200_not_an_error(client):
@@ -79,7 +87,8 @@ def test_a_corrective_retry_is_visible_in_the_response(client):
 
     obs = response.json()["observability"]
     assert obs["attempts"] == 2
-    assert obs["steps"].count("draft") == 2
+    verdicts = [s["detail"].get("verdict") for s in obs["steps"] if s["node"] == "govern"]
+    assert verdicts == ["correction_requested", "accepted"]
 
 
 def test_a_broken_provider_is_a_503(client):

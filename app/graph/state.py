@@ -10,6 +10,7 @@ import operator
 from typing import Annotated, TypedDict
 
 from app.llm import Message, TokenUsage
+from app.observability import NodeStep
 from app.retrieval import RetrievedChunk
 from app.synthesis import Answer, Route
 
@@ -28,6 +29,7 @@ class AskState(TypedDict, total=False):
     usages: Annotated[list[TokenUsage], operator.add]
     model: str | None
     llm_latency_ms: float
-    steps: Annotated[list[str], operator.add]
+    # Appended by the `timed` wrapper, not by the nodes themselves.
+    steps: Annotated[list[NodeStep], operator.add]
     # Set only when the run is finished — the graph's terminal condition.
     answer: Answer | None

@@ -34,7 +34,7 @@ def test_answers_and_resolves_citations_when_grounded():
     assert answer.attempts == 1
     assert client.call_count == 1
     assert answer.route == "qa"
-    assert answer.steps == ["route", "retrieve", "draft", "govern"]
+    assert answer.path == ["route", "retrieve", "draft", "govern"]
 
 
 def test_refuses_without_calling_the_llm_when_retrieval_is_empty():
@@ -44,7 +44,7 @@ def test_refuses_without_calling_the_llm_when_retrieval_is_empty():
     assert answer.refusal_reason is RefusalReason.NO_RETRIEVAL
     assert answer.citations == []
     assert client.call_count == 0
-    assert answer.steps == ["route", "retrieve"]
+    assert answer.path == ["route", "retrieve"]
 
 
 def test_refuses_without_calling_the_llm_when_nothing_scores_as_relevant():
@@ -90,7 +90,7 @@ def test_invalid_citation_triggers_one_corrective_retry_then_succeeds():
     assert [c.marker for c in answer.citations] == [1]
     assert "[7]" in client.last_prompt  # the correction names the bad marker
     # The retry is a real edge back through the graph, not a hidden inner loop.
-    assert answer.steps == ["route", "retrieve", "draft", "govern", "draft", "govern"]
+    assert answer.path == ["route", "retrieve", "draft", "govern", "draft", "govern"]
 
 
 def test_uncited_answer_triggers_a_retry():

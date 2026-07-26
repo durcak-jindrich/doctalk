@@ -256,9 +256,37 @@ and source previews, so string-built markup would be an injection path
 straight from an uploaded file into the page.
 
 **Observability in the UI, not just logs** — an expandable "under the hood"
-panel per answer: route, latency, tokens/cost, and the graph path, with a
-repeated node marked so a corrective retry is visible. It doubles as the "go
-deeper" moment in the demo.
+panel per answer: route, latency, tokens/cost, and the graph path with a
+per-node timing bar, verdict, and a repeated node marked so a corrective retry
+is visible. It doubles as the "go deeper" moment in the demo.
+
+## Observability
+
+**Per-node timing, not one total.** A single latency number cannot say whether
+a slow answer was the model or the reranker. Each node records its own
+duration and verdict, so the panel and the evaluation both attribute cost to a
+stage — retrieval is usually the surprise, not the LLM.
+
+**Instrumentation wraps the nodes; it is not written into them.** `_instrument`
+times, logs and records every node identically, so a node body stays about its
+decision and no node can be forgotten. Nodes report what they decided by
+returning `_detail`, which the wrapper lifts onto the step record.
+
+**Steps are attached after the run, not inside a node.** A node cannot know its
+own duration until it has returned, and none can see the whole run — so
+`answer_question` assembles the final `Answer` with the complete step list and
+wall-clock total.
+
+**JSON Lines by default.** Logs are queryable as shipped (Azure Log Analytics
+ingests them without a parser); `LOG_FORMAT=text` gives readable console output
+locally. Every line carries a `trace_id`, also returned as `X-Trace-Id` and
+echoed in the answer payload, so a question about one answer leads straight to
+its log lines. An inbound `X-Trace-Id` is honoured, which is what lets a front
+door correlate across hops later.
+
+**Cost is recorded per attempt, not per answer.** A corrective retry is a real
+LLM call and is counted, so the observability panel and the evaluation cannot
+under-report what governance costs.
 
 ## Azure readiness
 

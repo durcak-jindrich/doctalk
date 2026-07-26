@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -41,6 +43,11 @@ class Settings(BaseSettings):
     # Per-file upload ceiling. Parsing and embedding load the whole file into
     # memory, so this is a memory bound, not just a politeness limit.
     max_upload_bytes: int = 10 * 1024 * 1024
+
+    # Observability. JSON Lines by default so logs are queryable as shipped;
+    # `text` is the readable console format for local work.
+    log_format: Literal["json", "text"] = "json"
+    log_level: str = "INFO"
 
     # Azure / auth (feature-flagged off locally)
     auth_enabled: bool = False

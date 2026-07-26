@@ -18,6 +18,7 @@ from enum import StrEnum
 from typing import Literal
 
 from app.llm import TokenUsage
+from app.observability import NodeStep
 
 from .citations import Citation
 
@@ -61,13 +62,22 @@ class Answer:
     refused: bool = False
     refusal_reason: RefusalReason | None = None
     route: Route = "qa"
-    # Graph nodes visited, in order — the audit trail of how this answer was
-    # reached, including any corrective retry. Timings land here in Phase 6.
-    steps: list[str] = field(default_factory=list)
+    # Graph nodes visited, in order, each with its own timing and verdict —
+    # the audit trail of how this answer was reached, including any
+    # corrective retry. Attached by `answer_question` once the run is over.
+    steps: list[NodeStep] = field(default_factory=list)
     attempts: int = 0
     usages: list[TokenUsage] = field(default_factory=list)
     model: str | None = None
     llm_latency_ms: float = 0.0
+    #: Wall-clock time for the whole pipeline, not just the LLM calls.
+    total_latency_ms: float = 0.0
+    trace_id: str | None = None
+
+    @property
+    def path(self) -> list[str]:
+        """Node names in visit order — the readable form of `steps`."""
+        return [step.node for step in self.steps]
 
     @property
     def total_usage(self) -> TokenUsage:

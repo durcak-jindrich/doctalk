@@ -309,10 +309,12 @@ function renderObservability(obs) {
     ["Route", obs.route],
     ["Total", `${Math.round(obs.total_latency_ms)} ms`],
     ["LLM", `${Math.round(obs.llm_latency_ms)} ms`],
+    ["Retrieval etc.", `${Math.round(obs.overhead_ms)} ms`],
     ["Model", obs.model ?? "—"],
     ["Tokens", `${obs.usage.total_tokens} (${obs.usage.prompt_tokens} in / ${obs.usage.completion_tokens} out)`],
     ["Cost", cost],
     ["LLM calls", String(obs.attempts)],
+    ["Trace", obs.trace_id ?? "—"],
   ];
   for (const [key, value] of facts) {
     const item = el("div", "obs__item");
@@ -324,16 +326,33 @@ function renderObservability(obs) {
 
   const path = el("div", "obs__path");
   path.appendChild(el("div", "obs__key", "Graph path"));
-  const steps = el("div", "obs__steps");
-  const seen = new Map();
-  obs.steps.forEach((step, index) => {
-    if (index > 0) steps.appendChild(el("span", "obs__arrow", "→"));
-    const chip = el("span", "obs__step", step);
+
+  const slowest = Math.max(...obs.steps.map((s) => s.duration_ms), 1);
+  const steps = el("div", "obs__nodes");
+  const seen = new Set();
+
+  for (const step of obs.steps) {
+    const row = el("div", "node");
     // A repeated node means governance sent the answer back for correction.
-    if (seen.has(step)) chip.dataset.repeat = "true";
-    seen.set(step, true);
-    steps.appendChild(chip);
-  });
+    if (seen.has(step.node)) row.dataset.repeat = "true";
+    seen.add(step.node);
+
+    row.appendChild(el("span", "node__name", step.node));
+
+    const bar = el("span", "node__bar");
+    const fill = el("span", "node__fill");
+    fill.style.width = `${Math.max(2, (step.duration_ms / slowest) * 100)}%`;
+    bar.appendChild(fill);
+    row.appendChild(bar);
+
+    row.appendChild(el("span", "node__ms", `${Math.round(step.duration_ms)} ms`));
+
+    const verdict = step.detail?.verdict;
+    if (verdict) row.appendChild(el("span", "node__verdict", verdict.replace(/_/g, " ")));
+
+    steps.appendChild(row);
+  }
+
   path.appendChild(steps);
   body.appendChild(path);
 

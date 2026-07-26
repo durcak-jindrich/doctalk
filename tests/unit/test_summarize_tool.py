@@ -61,9 +61,9 @@ def test_summary_answers_from_document_openings_with_citations(summarize):
     assert not answer.refused
     assert answer.route == "summarize"
     assert [c.chunk_id for c in answer.citations] == ["handbook-a1#c0001", "policy-b2#c0001"]
-    assert answer.steps == ["route", "gather_summary_sources", "draft", "govern"]
+    assert answer.path == ["route", "gather_summary_sources", "draft", "govern"]
     # Retrieval is skipped entirely — there is no query to be relevant to.
-    assert "retrieve" not in answer.steps
+    assert "retrieve" not in answer.path
     assert client.call_count == 1
 
 
@@ -89,7 +89,7 @@ def test_summary_refuses_on_an_empty_workspace_without_calling_the_llm(summarize
     assert answer.refused
     assert answer.refusal_reason is RefusalReason.NO_RETRIEVAL
     assert client.call_count == 0
-    assert answer.steps == ["route", "gather_summary_sources"]
+    assert answer.path == ["route", "gather_summary_sources"]
 
 
 def test_summary_sources_are_not_presented_as_relevance_ranked(summarize):

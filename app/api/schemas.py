@@ -7,11 +7,12 @@ happens to hold.
 """
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
 from app.llm import TokenUsage
+from app.observability import NodeStep
 from app.synthesis import Answer, Citation
 
 
@@ -105,20 +106,36 @@ class UsageOut(BaseModel):
         )
 
 
+class NodeStepOut(BaseModel):
+    """One graph node's execution, as rendered in the panel."""
+
+    node: str
+    duration_ms: float
+    detail: dict[str, Any]
+
+    @classmethod
+    def of(cls, step: NodeStep) -> "NodeStepOut":
+        return cls(node=step.node, duration_ms=step.duration_ms, detail=step.detail)
+
+
 class ObservabilityOut(BaseModel):
     """What the "under the hood" panel renders.
 
-    `steps` is the graph's node path, so a run that needed a corrective retry
-    is visibly different from one that did not.
+    `steps` is the graph's node path with per-node timings and verdicts, so a
+    run that needed a corrective retry is visibly different from one that did
+    not — and slow stages are attributable rather than lumped into one total.
     """
 
+    trace_id: str | None
     route: str
-    steps: list[str]
+    steps: list[NodeStepOut]
     attempts: int
     model: str | None
     usage: UsageOut
     llm_latency_ms: float
     total_latency_ms: float
+    #: Pipeline time not spent waiting on the model — retrieval, reranking, SQL.
+    overhead_ms: float
 
 
 class AnswerOut(BaseModel):
@@ -129,20 +146,22 @@ class AnswerOut(BaseModel):
     observability: ObservabilityOut
 
     @classmethod
-    def of(cls, answer: Answer, *, total_latency_ms: float) -> "AnswerOut":
+    def of(cls, answer: Answer) -> "AnswerOut":
         return cls(
             text=answer.text,
             refused=answer.refused,
             refusal_reason=answer.refusal_reason,
             citations=[CitationOut.of(c) for c in answer.citations],
             observability=ObservabilityOut(
+                trace_id=answer.trace_id,
                 route=answer.route,
-                steps=answer.steps,
+                steps=[NodeStepOut.of(s) for s in answer.steps],
                 attempts=answer.attempts,
                 model=answer.model,
                 usage=UsageOut.of(answer.total_usage),
                 llm_latency_ms=round(answer.llm_latency_ms, 1),
-                total_latency_ms=round(total_latency_ms, 1),
+                total_latency_ms=answer.total_latency_ms,
+                overhead_ms=round(max(0.0, answer.total_latency_ms - answer.llm_latency_ms), 1),
             ),
         )
 

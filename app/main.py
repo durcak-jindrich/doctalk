@@ -5,17 +5,16 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api import ask_router, documents_router
+from app.config import settings
+from app.observability import configure_logging, new_trace_id, trace
 from app.retrieval import warm_models
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
-)
+configure_logging(settings.log_format, settings.log_level)
 logger = logging.getLogger(__name__)
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -39,6 +38,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="DocTalk", version="0.1.0", lifespan=lifespan)
 app.include_router(documents_router)
 app.include_router(ask_router)
+
+
+@app.middleware("http")
+async def bind_trace_id(request: Request, call_next):
+    """Tag every log line from one request with the same id.
+
+    Returned as `X-Trace-Id` and echoed in the answer payload, so an answer a
+    user is asking about can be tied back to its log lines. An inbound header
+    is honoured, which is what lets a future front door correlate across hops.
+    """
+    trace_id = request.headers.get("X-Trace-Id") or new_trace_id()
+    with trace(trace_id):
+        response = await call_next(request)
+    response.headers["X-Trace-Id"] = trace_id
+    return response
 
 
 @app.get("/health", tags=["ops"])

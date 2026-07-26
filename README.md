@@ -5,10 +5,10 @@ Grounded Q&A over a small set of internal documents. Upload 1–5 files
 content, with citations back to the originating chunk/document. If nothing
 relevant is found, DocTalk says so instead of guessing.
 
-> **Status: baseline complete (Phase 5 of `PLAN.md`).** Upload → ask →
-> cited answer runs end to end in the browser. Observability, Azure IaC and
-> the evaluation report are still to come — see
-> [Project status](#project-status).
+> **Status: baseline complete, instrumented (Phase 6 of `PLAN.md`).** Upload
+> → ask → cited answer runs end to end in the browser, with per-node timings
+> and structured logs. Azure IaC and the evaluation report are still to come —
+> see [Project status](#project-status).
 
 Built as an interview case study; the brief is in
 [`docs/assignment.md`](docs/assignment.md).
@@ -20,6 +20,7 @@ Built as an interview case study; the brief is in
 - [Quickstart](#quickstart)
 - [Demo script](#demo-script)
 - [LLM calls in tests](#llm-calls-in-tests)
+- [Observability](#observability)
 - [Repository layout](#repository-layout)
 - [Key decisions & assumptions](#key-decisions--assumptions)
 - [Limitations](#limitations)
@@ -191,12 +192,41 @@ uv run python -m scripts.manual_smoke_test_synthesis --live   # + real answers (
 A refusal is a **200**, not an error: "the documents don't answer this" is the
 product working. Only a broken provider is a 5xx.
 
+## Observability
+
+Every answer carries its own trace, in the UI and in the logs.
+
+**In the UI** — "Under the hood" on any answer shows the route, total vs. LLM
+vs. retrieval time, tokens, cost, and the graph path with a timing bar and
+verdict per node. A repeated `draft → govern` pair is highlighted: that is the
+citation validator having rejected the first attempt.
+
+**In the logs** — JSON Lines, one object per event, queryable as shipped:
+
+```bash
+LOG_FORMAT=text uv run uvicorn app.main:app   # readable console output instead
+```
+
+```jsonc
+{"event":"graph.node","node":"retrieve","duration_ms":93.2,"chunks":5,
+ "best_score":8.76,"verdict":"proceed","trace_id":"e23e4c84ad5e"}
+{"event":"ask.completed","route":"qa","refused":false,"attempts":2,
+ "citations":2,"cost_usd":0.000091,"total_latency_ms":1180.4,
+ "path":["route","retrieve","draft","govern","draft","govern"]}
+```
+
+Every line carries a `trace_id`, also returned as the `X-Trace-Id` response
+header and echoed in the answer payload — so a question about one answer leads
+straight to its log lines. An inbound `X-Trace-Id` is honoured for correlation
+across hops.
+
 ## Repository layout
 
 | Path | Purpose |
 |---|---|
 | `app/main.py` | FastAPI entrypoint |
 | `app/config.py` | Settings (`pydantic-settings`, from `.env`) |
+| `app/observability.py` | Structured logging, trace ids, per-node step records |
 | `app/api/` | HTTP routes, request/response schemas, dependencies |
 | `app/static/` | Frontend: HTML/CSS/vanilla JS, no build step |
 | `app/parsers/` | PDF/DOCX/MD → structured text |
@@ -264,9 +294,9 @@ headlines:
 
 ## Project status
 
-Tracking [`PLAN.md`](PLAN.md). Current: **Phase 5 — API + frontend**.
-The baseline the brief asks for — upload, ask, cited answers, runs locally
-end to end — is complete.
+Tracking [`PLAN.md`](PLAN.md). Current: **Phase 6 — Observability
+instrumentation**. The baseline the brief asks for — upload, ask, cited
+answers, runs locally end to end — is complete and instrumented.
 
 | Phase | Status |
 |---|---|
@@ -276,7 +306,7 @@ end to end — is complete.
 | 3 — Grounded synthesis & citation governance | Done |
 | 4 — Agentic orchestration (LangGraph) | Done |
 | 5 — API + frontend | Done |
-| 6 — Observability instrumentation | Not started |
+| 6 — Observability instrumentation | Done |
 | 7 — Testing | Not started |
 | 8 — Azure readiness | Not started |
 | 9 — Evaluation | Not started |

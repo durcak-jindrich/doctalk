@@ -82,6 +82,7 @@ order and phase scope: `PLAN.md`.
 
 - `app/main.py` — FastAPI entrypoint: routers, static frontend, model warmup
 - `app/config.py` — `pydantic-settings` config, loaded from `.env`
+- `app/observability.py` — JSON-lines logging, trace ids, `NodeStep` records
 - `app/api/` — HTTP routes (upload, ask, document list/view/delete), wire
   schemas, and request dependencies
 - `app/static/` — frontend: HTML/CSS/vanilla JS, no build step
@@ -110,9 +111,10 @@ order and phase scope: `PLAN.md`.
 - `PLAN.md` — phased implementation plan (source of truth for build order)
 - `docker-compose.yml` / `Dockerfile` — local and containerized run paths
 
-As of now Phases 0–5 are built: the baseline runs locally end to end —
-upload, ask, cited answers, in the browser. See `README.md`'s status table
-and `PLAN.md` for phase status.
+As of now Phases 0–6 are built: the baseline runs locally end to end —
+upload, ask, cited answers, in the browser — with per-node timings and
+structured logs. See `README.md`'s status table and `PLAN.md` for phase
+status.
 
 ## Rules
 - After each phase, explicitly test the output, sanity-check assumptions,

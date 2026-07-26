@@ -82,7 +82,10 @@ def show(answer: Answer) -> None:
     usage = answer.total_usage
     verdict = f"REFUSED ({answer.refusal_reason})" if answer.refused else "ANSWERED"
     print(f"    verdict: {verdict}, attempts={answer.attempts}")
-    print(f"    path:    {answer.route} :: {' -> '.join(answer.steps)}")
+    print(f"    path:    {answer.route} :: {' -> '.join(answer.path)}")
+    for step in answer.steps:
+        verdict = step.detail.get("verdict", "")
+        print(f"      {step.node:<24} {step.duration_ms:>7.1f} ms  {verdict}")
     print(f"    text:    {answer.text}")
     for citation in answer.citations:
         print(
@@ -195,7 +198,7 @@ def main() -> None:
         section("5. A bare summary request routes to the summarize tool")
         answer = ask("Summarize the documents", client)
         assert answer.route == "summarize", "a bare summary request must not go to retrieval"
-        assert "retrieve" not in answer.steps
+        assert "retrieve" not in answer.path
         assert not answer.refused, "the workspace has documents, so a summary is possible"
         assert answer.citations, "a summary is governed like any other answer"
         cited_docs = {citation.document_id for citation in answer.citations}
@@ -224,7 +227,7 @@ def main() -> None:
     fake = FakeLLMClient(["Employees get 15 days [99].", "Employees get 15 days [1]."])
     answer = ask("How many vacation days?", fake)
     assert not answer.refused and answer.attempts == 2
-    assert answer.steps.count("draft") == 2, "the retry must be a second trip through the graph"
+    assert answer.path.count("draft") == 2, "the retry must be a second trip through the graph"
     ok("invalid citation triggered exactly one corrective retry, then passed")
 
     print("\n  --- fabricated marker, never corrected -> refusal, not pass-through ---")

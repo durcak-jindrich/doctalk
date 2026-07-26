@@ -15,6 +15,8 @@ Two edges guard against runaway cost. Both `retrieve` and
 enforces the attempt budget, so the retry edge cannot cycle indefinitely.
 """
 
+import logging
+from dataclasses import replace
 from functools import lru_cache
 
 from langchain_core.runnables import RunnableConfig
@@ -24,11 +26,14 @@ from psycopg import Connection
 from app.config import settings
 from app.llm import LLMClient
 from app.llm.openrouter import OpenRouterClient
+from app.observability import current_trace_id, timed
 from app.retrieval.retriever import HybridRerankRetriever
 from app.synthesis import Answer
 
 from .nodes import make_nodes
 from .state import AskState
+
+logger = logging.getLogger(__name__)
 
 
 def _after_sources(state: AskState) -> str:
@@ -104,5 +109,40 @@ def answer_question(
         # ever fires if the graph itself fails to terminate.
         "recursion_limit": 2 * attempts + 6,
     }
-    final = runner.invoke({"question": question}, config=config)
-    return final["answer"]
+
+    with timed() as elapsed:
+        final = runner.invoke({"question": question}, config=config)
+
+    # Steps and total latency are attached here rather than inside a node: a
+    # node cannot know its own duration until it has returned, and none of
+    # them can see the whole run.
+    answer = replace(
+        final["answer"],
+        steps=final.get("steps", []),
+        total_latency_ms=round(elapsed.ms, 1),
+        trace_id=current_trace_id(),
+    )
+
+    usage = answer.total_usage
+    logger.info(
+        "answered route=%s refused=%s in %.0fms",
+        answer.route,
+        answer.refused,
+        elapsed.ms,
+        extra={
+            "event": "ask.completed",
+            "route": answer.route,
+            "refused": answer.refused,
+            "refusal_reason": answer.refusal_reason,
+            "attempts": answer.attempts,
+            "citations": len(answer.citations),
+            "model": answer.model,
+            "prompt_tokens": usage.prompt_tokens,
+            "completion_tokens": usage.completion_tokens,
+            "cost_usd": usage.cost_usd,
+            "llm_latency_ms": round(answer.llm_latency_ms, 1),
+            "total_latency_ms": round(elapsed.ms, 1),
+            "path": [step.node for step in answer.steps],
+        },
+    )
+    return answer
