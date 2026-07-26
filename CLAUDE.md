@@ -80,9 +80,11 @@ order and phase scope: `PLAN.md`.
 
 ## Architecture
 
-- `app/main.py` — FastAPI app entrypoint (currently just `/health`)
+- `app/main.py` — FastAPI entrypoint: routers, static frontend, model warmup
 - `app/config.py` — `pydantic-settings` config, loaded from `.env`
-- `app/api/` — HTTP routes: upload, ask, document list/view/delete
+- `app/api/` — HTTP routes (upload, ask, document list/view/delete), wire
+  schemas, and request dependencies
+- `app/static/` — frontend: HTML/CSS/vanilla JS, no build step
 - `app/parsers/` — PDF/DOCX/MD → structured text extraction
 - `app/chunking/` — structure-aware chunking + chunk ID scheme
 - `app/storage/` — Postgres/`pgvector` persistence layer, workspace cap
@@ -108,10 +110,9 @@ order and phase scope: `PLAN.md`.
 - `PLAN.md` — phased implementation plan (source of truth for build order)
 - `docker-compose.yml` / `Dockerfile` — local and containerized run paths
 
-As of now Phases 0–4 are built (ingestion, hybrid retrieval, grounded
-answering with citation governance, LangGraph orchestration); `app/api/` is
-still an empty stub. See `README.md`'s status table and `PLAN.md` for phase
-status.
+As of now Phases 0–5 are built: the baseline runs locally end to end —
+upload, ask, cited answers, in the browser. See `README.md`'s status table
+and `PLAN.md` for phase status.
 
 ## Rules
 - After each phase, explicitly test the output, sanity-check assumptions,

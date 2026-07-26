@@ -38,6 +38,9 @@ class Settings(BaseSettings):
 
     # Workspace
     max_documents: int = 5
+    # Per-file upload ceiling. Parsing and embedding load the whole file into
+    # memory, so this is a memory bound, not just a politeness limit.
+    max_upload_bytes: int = 10 * 1024 * 1024
 
     # Azure / auth (feature-flagged off locally)
     auth_enabled: bool = False

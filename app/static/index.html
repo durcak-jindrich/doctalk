@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DocTalk — Discuss your documents</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📄</text></svg>">
+</head>
+<body>
+  <div class="app">
+
+    <aside class="sidebar">
+      <header class="brand">
+        <h1>DocTalk</h1>
+        <p>Answers grounded <strong>only</strong> in the documents you upload &mdash; always cited, never guessed.</p>
+      </header>
+
+      <section class="panel" aria-labelledby="workspace-heading">
+        <div class="panel__head">
+          <h2 id="workspace-heading">Workspace</h2>
+          <span class="slots" id="slots" title="Documents used of the maximum">&mdash;</span>
+        </div>
+
+        <div class="dropzone" id="dropzone" role="button" tabindex="0"
+             aria-label="Add documents: choose files or drop them here">
+          <svg class="dropzone__icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 16V4m0 0L8 8m4-4 4 4M4 17v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1"/>
+          </svg>
+          <p class="dropzone__title">Drop files here</p>
+          <p class="dropzone__hint">or click to browse &middot; PDF, DOCX, MD</p>
+          <input type="file" id="file-input" multiple accept=".pdf,.docx,.md" hidden>
+        </div>
+
+        <div class="uploading" id="uploading" hidden>
+          <span class="spinner" aria-hidden="true"></span>
+          <span id="uploading-label">Processing…</span>
+        </div>
+
+        <ul class="doclist" id="doclist"></ul>
+        <div class="report" id="report" role="status" aria-live="polite"></div>
+      </section>
+
+      <footer class="sidebar__foot">
+        <a href="/docs" target="_blank" rel="noopener">API reference</a>
+      </footer>
+    </aside>
+
+    <main class="chat">
+      <div class="messages" id="messages" role="log" aria-live="polite" aria-label="Conversation"></div>
+
+      <form class="composer" id="composer">
+        <label class="visually-hidden" for="question">Your question</label>
+        <textarea id="question" rows="1" autocomplete="off"
+                  placeholder="Ask something about your documents…"></textarea>
+        <button type="submit" id="send" title="Ask (Enter)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m0 0-6-6m6 6-6 6"/></svg>
+          <span class="visually-hidden">Ask</span>
+        </button>
+      </form>
+      <p class="composer__hint">Enter to ask &middot; Shift+Enter for a new line</p>
+    </main>
+
+  </div>
+
+  <template id="tpl-empty">
+    <div class="empty">
+      <svg class="empty__icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 4h10l6 6v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Zm10 0v6h6"/>
+      </svg>
+      <h2>Upload a document to begin</h2>
+      <p>DocTalk answers strictly from what you upload. If the answer isn't in
+         your documents, it says so instead of guessing.</p>
+      <ul class="empty__examples">
+        <li>&ldquo;How many vacation days do full-time employees get?&rdquo;</li>
+        <li>&ldquo;Summarize the documents&rdquo;</li>
+      </ul>
+    </div>
+  </template>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

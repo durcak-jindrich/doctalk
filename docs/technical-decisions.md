@@ -213,15 +213,52 @@ route here; "summarize the leave policy" names a topic and goes to retrieval.
 Summaries pass through the same `govern` node, so they are cited or refused
 like any other answer.
 
+## API design
+
+**Sync `def` handlers, not `async def`.** Parsing, embedding, psycopg and the
+LLM call are all blocking, so `async def` would block the event loop; sync
+handlers run in FastAPI's threadpool instead. One execution model end to end,
+no concurrency lost.
+
+**A refusal is a 200.** "The documents don't answer this" is the product
+working, and the client renders it as an answer with `refused: true`. Only an
+unusable provider is a 5xx (503), because that is the one condition the user
+cannot fix by rephrasing.
+
+**Upload reports per file, not per request.** Three files where one is an
+unreadable PDF ingests the other two and says what went wrong with the third.
+Batch-fails would make the 5-document cap needlessly painful to work with.
+
+**Mutations return the whole workspace.** Upload and delete respond with the
+document list and remaining capacity, so the slot indicator cannot drift out
+of sync with what the server just did.
+
+**Models load at startup, the LLM client stays lazy.** The embedder and
+cross-encoder are warmed in the lifespan hook so the first question doesn't
+pay for them. The LLM client is *not* built there: it needs an API key, and
+the app must still boot and accept uploads without one.
+
 ## UI/UX approach
 
 Demoed live to a non-technical Product Owner, so: real design care, not a
 debug page. FastAPI serving static HTML/CSS/vanilla JS (no build step, no CDN
 dependency at demo time). Drag/drop upload with a remaining-slot indicator,
 chat-style Q&A with citations as expandable chips, designed empty/error
-states. Observability in the UI, not just logs — an expandable "under the
-hood" panel per answer (latency, tokens/cost, which retrieval leg found each
-cited chunk), which doubles as the "go deeper" moment in the demo.
+states, light and dark.
+
+**A refusal is styled as a calm, deliberate outcome** — not an error. It is
+the feature the brief is really asking for, so it must not look like a
+failure.
+
+**Everything from a document or a model is inserted as a text node**, never as
+HTML. Uploaded content is untrusted and the model echoes it back into answers
+and source previews, so string-built markup would be an injection path
+straight from an uploaded file into the page.
+
+**Observability in the UI, not just logs** — an expandable "under the hood"
+panel per answer: route, latency, tokens/cost, and the graph path, with a
+repeated node marked so a corrective retry is visible. It doubles as the "go
+deeper" moment in the demo.
 
 ## Azure readiness
 

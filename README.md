@@ -5,9 +5,10 @@ Grounded Q&A over a small set of internal documents. Upload 1–5 files
 content, with citations back to the originating chunk/document. If nothing
 relevant is found, DocTalk says so instead of guessing.
 
-> **Status: early build (Phase 4 of `PLAN.md`).** Ingestion, hybrid retrieval,
-> and grounded answering with validated citations work end to end through the
-> LangGraph pipeline. No API/UI yet — see [Project status](#project-status).
+> **Status: baseline complete (Phase 5 of `PLAN.md`).** Upload → ask →
+> cited answer runs end to end in the browser. Observability, Azure IaC and
+> the evaluation report are still to come — see
+> [Project status](#project-status).
 
 Built as an interview case study; the brief is in
 [`docs/assignment.md`](docs/assignment.md).
@@ -17,6 +18,7 @@ Built as an interview case study; the brief is in
 - [How groundedness is enforced](#how-groundedness-is-enforced)
 - [Tech stack](#tech-stack)
 - [Quickstart](#quickstart)
+- [Demo script](#demo-script)
 - [LLM calls in tests](#llm-calls-in-tests)
 - [Repository layout](#repository-layout)
 - [Key decisions & assumptions](#key-decisions--assumptions)
@@ -100,7 +102,7 @@ cp .env.example .env    # add OPENROUTER_API_KEY (free tier works)
 **Everything (app + Postgres/ParadeDB) via Docker:**
 ```bash
 docker compose up --build
-# `migrate` applies migrations/ (~1s), then `app` starts on :8000 (/health)
+# `migrate` applies migrations/ (~1s), then `app` serves the UI on :8000
 # Fresh start: docker compose down -v && docker compose up -d
 ```
 
@@ -108,8 +110,13 @@ docker compose up --build
 ```bash
 uv sync
 uv run python -m scripts.reset_db   # drop + replay migrations/ (destructive)
-uv run uvicorn app.main:app --reload
+uv run uvicorn app.main:app --reload   # UI + API on http://localhost:8000
 ```
+
+Startup loads the embedding and reranker models (a few seconds) so the first
+question isn't the one that pays for it. The app boots without an
+`OPENROUTER_API_KEY` — upload and retrieval work; `/api/ask` returns 503 until
+a key is set.
 
 **Tests / lint:**
 ```bash
@@ -148,9 +155,41 @@ uv run python -m scripts.manual_smoke_test_synthesis          # + graph, fake LL
 uv run python -m scripts.manual_smoke_test_synthesis --live   # + real answers (~6 LLM calls)
 ```
 
-*(Today `/health` is the only HTTP endpoint — the graph runs as a Python call,
-`answer_question(conn, question)`, but isn't wired to a route yet. The
-upload → ask → citations demo script lands with Phase 5.)*
+## Demo script
+
+`docker compose up --build`, then open <http://localhost:8000>.
+
+1. **Upload** — drop `hr-policy.md` and `it-security.md` onto the panel. Each
+   file reports its chunk count; the counter moves to `2 / 5`.
+2. **Ask a covered question** — *"How many vacation days do full-time
+   employees get?"* The answer carries `[n]` chips; clicking one opens the
+   exact passage it came from, with its `chunk_id` and which retrieval leg
+   found it.
+3. **Ask something absent** — *"What is the parental leave allowance?"* DocTalk
+   refuses and says why, instead of guessing. This is the point of the system:
+   the refusal is styled as a normal outcome, not an error.
+4. **Summarize** — *"Summarize the documents"* routes to the summarize tool;
+   **Under the hood** shows `gather_summary_sources` in the graph path
+   instead of `retrieve`.
+5. **Open "Under the hood"** on any answer — route, latency, tokens, cost, and
+   the graph path. A repeated `draft → govern` pair means the citation
+   validator rejected the first attempt and sent it back for correction.
+
+## HTTP API
+
+`/docs` serves the generated OpenAPI reference.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/documents` | Upload one or more files; per-file outcome + workspace state |
+| `GET` | `/api/documents` | Documents and remaining capacity |
+| `GET` | `/api/documents/{id}` | One document with its chunks |
+| `DELETE` | `/api/documents/{id}` | Remove a document, freeing its slot |
+| `POST` | `/api/ask` | Question → grounded answer, citations, observability |
+| `GET` | `/health` | Liveness |
+
+A refusal is a **200**, not an error: "the documents don't answer this" is the
+product working. Only a broken provider is a 5xx.
 
 ## Repository layout
 
@@ -158,7 +197,8 @@ upload → ask → citations demo script lands with Phase 5.)*
 |---|---|
 | `app/main.py` | FastAPI entrypoint |
 | `app/config.py` | Settings (`pydantic-settings`, from `.env`) |
-| `app/api/` | HTTP routes: upload, ask, document list/view/delete |
+| `app/api/` | HTTP routes, request/response schemas, dependencies |
+| `app/static/` | Frontend: HTML/CSS/vanilla JS, no build step |
 | `app/parsers/` | PDF/DOCX/MD → structured text |
 | `app/chunking/` | Structure-aware chunking + chunk ID scheme |
 | `app/storage/` | Postgres/`pgvector` persistence, workspace cap |
@@ -197,7 +237,10 @@ headlines:
 
 ## Limitations
 
-- No API/UI yet — the graph runs as a direct Python call.
+- **Single shared workspace, no auth** — anyone reaching the port sees and can
+  delete every document. AAD auth arrives in Phase 8.
+- **No streaming** — answers appear when governance has passed, which is the
+  price of never showing an unvalidated citation.
 - **Summaries cover each document's opening, not the whole document** — the
   prompt says so, but a summary is a partial view by construction.
 - **Summary routing is pattern-based**, so an unusual phrasing falls through
@@ -221,8 +264,9 @@ headlines:
 
 ## Project status
 
-Tracking [`PLAN.md`](PLAN.md). Current: **Phase 4 — Agentic orchestration
-(LangGraph)** (complete, not yet wired to an API).
+Tracking [`PLAN.md`](PLAN.md). Current: **Phase 5 — API + frontend**.
+The baseline the brief asks for — upload, ask, cited answers, runs locally
+end to end — is complete.
 
 | Phase | Status |
 |---|---|
@@ -231,7 +275,7 @@ Tracking [`PLAN.md`](PLAN.md). Current: **Phase 4 — Agentic orchestration
 | 2 — Hybrid retrieval + reranking | Done |
 | 3 — Grounded synthesis & citation governance | Done |
 | 4 — Agentic orchestration (LangGraph) | Done |
-| 5 — API + frontend | Not started |
+| 5 — API + frontend | Done |
 | 6 — Observability instrumentation | Not started |
 | 7 — Testing | Not started |
 | 8 — Azure readiness | Not started |

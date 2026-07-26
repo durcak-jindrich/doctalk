@@ -78,10 +78,13 @@ def insert_chunks(
 
 
 def list_documents(conn: Connection) -> list[dict]:
+    """Every document with its chunk count — what the workspace panel renders."""
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
-            "SELECT id, filename, file_type, char_count, uploaded_at "
-            "FROM documents ORDER BY uploaded_at"
+            "SELECT d.id, d.filename, d.file_type, d.char_count, d.uploaded_at, "
+            "       count(c.id) AS chunk_count "
+            "FROM documents d LEFT JOIN chunks c ON c.document_id = d.id "
+            "GROUP BY d.id ORDER BY d.uploaded_at"
         )
         return cur.fetchall()
 
