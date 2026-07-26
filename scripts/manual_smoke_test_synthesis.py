@@ -1,19 +1,25 @@
 """Manual smoke test for DocTalk Phase 3 (grounded synthesis + citation governance).
 
 Picks up where `scripts/manual_smoke_test.py` stops: it ingests a small document
-set, retrieves against it, and drives the real `synthesize()` loop — with a live
-OpenRouter model where an answer is expected, and with a scripted fake client
-where the point is to show the governance loop rejecting bad output.
+set, retrieves against it, and drives the real `synthesize()` loop.
 
 Run from the project root:
-    uv run python -m scripts.manual_smoke_test_synthesis
+    uv run python -m scripts.manual_smoke_test_synthesis           # no LLM calls
+    uv run python -m scripts.manual_smoke_test_synthesis --live    # 3 LLM calls
+
+Without `--live` this exercises the governance loop with a scripted fake client
+and costs nothing. `--live` adds the checks that need a real model — grounded
+answering, the model's own refusal, prompt-injection resistance — and spends
+OpenRouter quota, so run it when the model's behaviour is what you're checking.
 
 Prerequisites:
     docker compose up -d db          # Postgres/ParadeDB reachable at DATABASE_URL
-    OPENROUTER_API_KEY set in .env   # steps 2-5 are skipped without one
+    OPENROUTER_API_KEY in .env       # --live only
 
 DESTRUCTIVE: step 0 drops and re-bootstraps the schema.
 """
+
+import sys
 
 from app.config import settings
 from app.llm import LLMError, OpenRouterClient
@@ -25,6 +31,11 @@ from tests.fakes import FakeLLMClient
 
 SEP = "=" * 78
 RETRIEVER = HybridRerankRetriever()
+
+
+class SkipLive(Exception):
+    """The live-model section was not requested, or is unavailable."""
+
 
 HR_POLICY = b"""# HR Policy
 
@@ -110,10 +121,12 @@ def main() -> None:
         print(f"  {result}")
     ok("workspace ready")
 
-    # The live section is best-effort: a free-tier key can run out of quota
-    # mid-run, and that says nothing about whether the code is correct. Section 5
-    # exercises the governance loop deterministically either way.
+    # Best-effort: a free-tier key can run out of quota mid-run, and that says
+    # nothing about whether the code is correct. Section 5 exercises the
+    # governance loop deterministically either way.
     try:
+        if "--live" not in sys.argv:
+            raise SkipLive("pass --live to run the live-model checks")
         client = OpenRouterClient()
         print(f"\n  Live model: {settings.llm_model}")
 
@@ -181,8 +194,8 @@ def main() -> None:
             "the model followed instructions embedded in document content"
         )
         ok("injected instruction ignored; document text stayed data, not command")
-    except LLMError as e:
-        print(f"\n  SKIP - live checks unavailable: {e}")
+    except (SkipLive, LLMError) as e:
+        print(f"\n  SKIP - live checks not run: {e}")
 
     # ---------------------------------------------------------------------------
     section("5. Governance loop, driven with a scripted fake client")

@@ -57,9 +57,10 @@ LangGraph, Azure, observability). Concretely:
   observability panel per answer
 - **Containerization:** Docker Compose locally (`app` + `paradedb/paradedb`);
   Dockerfile + Bicep IaC for Azure Container Apps
-- **Testing:** `pytest`; fake `LLMClient` for the fast suite, one real
-  end-to-end test against a live OpenRouter call (structural assertions
-  only, skips cleanly with no API key)
+- **Testing:** `pytest`; fake `LLMClient` for the fast suite. Live-LLM tests
+  are marked `live` and deselected by default (`uv run pytest -m live` to run
+  them), structural assertions only, skipping cleanly with no API key — the
+  default dev loop spends no OpenRouter quota
 - **Lint/format:** `ruff`
 - **Config/secrets:** `.env` + `.env.example`; `pydantic-settings`; Key
   Vault + Managed Identity in Azure
@@ -112,8 +113,8 @@ Timing + token/usage capture around each graph node, structured
 Unit tests (parsers, chunker, retrieval legs + fusion + rerank, citation
 validator, fake-LLM synthesis). Integration test: fixture doc set + golden
 Q&A set (including a deliberately unanswerable question) against the
-fake-LLM suite. One real end-to-end test drives the actual graph through a
-live OpenRouter call.
+fake-LLM suite. One `live`-marked end-to-end test drives the actual graph
+through a real OpenRouter call, opt-in only.
 
 **Phase 8 — Azure readiness**
 Dockerfile hardening, Bicep IaC, Key Vault/Managed Identity wiring, AAD auth
@@ -153,14 +154,16 @@ commit.
   Azure. 
 - **OpenRouter:** accepted for this build; direct Azure OpenAI documented
   as the production alternative.
-- **Real end-to-end test cost:** the one live OpenRouter call per run is
-  kept to a cheap/free model on a small fixture — flag if CI should skip
-  it instead.
+- **Live LLM cost:** live calls are opt-in, never part of `pytest` or the
+  default smoke-test run, and use a cheap/free model on a small fixture.
+  Free OpenRouter slugs get retired and rate-limited without notice, so a
+  live demo wants a funded key and a paid model.
 
 ## Verification
 
-- `pytest`: fast suite (fake `LLMClient`) plus the one real end-to-end
-  test — both drive the LangGraph graph, not just individual functions.
+- `pytest`: fast suite (fake `LLMClient`), plus `pytest -m live` for the
+  real end-to-end test — both drive the LangGraph graph, not just individual
+  functions.
 - `docker compose up` as the local run path, exercised manually through
   the demo script (upload → ask → citations → observability panel) before
   calling it done.

@@ -36,3 +36,9 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+# Live-LLM tests are opt-in: `uv run pytest` spends no OpenRouter quota,
+# `uv run pytest -m live` runs them.
+addopts = "-m 'not live'"
+markers = [
+    "live: hits a real LLM provider — costs quota, deselected by default",
+]

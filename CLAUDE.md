@@ -57,8 +57,9 @@ works — see "Session workflow" below.
   observability panel per answer
 - **Containerization:** Docker Compose locally (`app` + `paradedb/paradedb`);
   Dockerfile + Bicep IaC for Azure Container Apps
-- **Testing:** `pytest`; fake `LLMClient` for the fast suite, one real
-  end-to-end test against a live OpenRouter call
+- **Testing:** `pytest`; fake `LLMClient` for the fast suite. Live-LLM tests
+  are marked `live` and deselected by default — `uv run pytest` never spends
+  OpenRouter quota
 - **Lint/format:** `ruff`
 - **Config/secrets:** `.env` + `.env.example`, `pydantic-settings`; Key
   Vault + Managed Identity in Azure
@@ -98,8 +99,8 @@ order and phase scope: `PLAN.md`.
   application code
 - `scripts/manual_smoke_test*.py` — manual end-to-end walkthroughs used to
   verify each phase (ingestion/retrieval, then grounded answering)
-- `tests/unit/`, `tests/integration/` — fast fake-LLM suite + one live
-  end-to-end test
+- `tests/unit/`, `tests/integration/` — fast fake-LLM suite + opt-in
+  `live`-marked tests
 - `docs/` — `assignment.md` (brief), `technical-decisions.md` (why),
   plus later: `security-limitations.md`, `governance-checklist.md`,
   `evaluation.md`, `azure-deployment.md`
@@ -119,11 +120,31 @@ empty stubs. See `README.md`'s status table and `PLAN.md` for phase status.
   worth more to get this right than to add RAG/agents on a shaky base.
 - Keep secrets (AAD, Key Vault, API keys) out of source control — `.env`
   only, and `.env` is gitignored.
+- **OpenRouter calls cost quota — spend them deliberately.** The default
+  test/dev loop must make zero LLM calls: use the fake `LLMClient`. Live
+  calls only behind an explicit opt-in (`pytest -m live`, `--live` on a smoke
+  script) and only when a real model's behaviour is the thing being checked.
+  Never poll or retry a live model to explore behaviour.
 - Any non-obvious design decision goes in the README, not just in chat —
   the interview will reference the README
 - Follow the best software engineering an UI/UX practices (coding, design, logging, testing, layouts, clean code, readable, maintainable project)
 
 ## Documentation
- - maintain a running decisions/methodology log that will be used for presentation
-   at the end. After everything is implemented, it has to be possible to draft the
-   narrative: problem, approach, key decisions, trade-offs, results.
+
+**Concise is a hard requirement, not a style preference** — bloated docs go
+unread, and an unread README fails the brief. Markdown must be complete and
+fully informational *and* short enough to read end to end.
+
+- One entry per decision: choice, why, trade-off — 1–3 lines. Not a
+  narrative, not a record of how you got there.
+- Record what shapes the system or what a reader would question. Routine
+  implementation detail and code-level gotchas belong in a code comment.
+- Edit existing entries rather than appending per-phase sections —
+  `docs/technical-decisions.md` must never become an append-only log.
+- Say it once: `README.md` gets the headline and a link,
+  `docs/technical-decisions.md` holds the reasoning.
+- Deleting stale or redundant prose is part of finishing a phase.
+
+These docs are the running decisions log for the final presentation: it must
+stay possible to draft problem → approach → key decisions → trade-offs →
+results from them.
