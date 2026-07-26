@@ -72,6 +72,43 @@ def test_retriever_records_which_leg_contributed(clean_schema):
     assert any(r.dense_rank is not None or r.lexical_rank is not None for r in results)
 
 
+def test_both_legs_actually_feed_the_retriever(clean_schema):
+    """Each leg must show up in the retriever's *own* output.
+
+    `test_lexical_leg_matches_an_exact_rare_term` proves the BM25 query works,
+    which is not the same as the retriever using it — deleting the lexical call
+    from `retrieve()` leaves that test green. These assertions are per-leg for
+    the same reason: `dense_rank or lexical_rank` passes on either one alone,
+    so it cannot tell a hybrid retriever from a dense-only one.
+    """
+    _ingest_fixtures()
+    retriever = HybridRerankRetriever()
+
+    with get_connection() as conn:
+        # A rare exact term is the lexical leg's home ground.
+        lexical_query = retriever.retrieve(conn, "helpdesk", top_k=5)
+        # Paraphrased, with no term overlap, is the dense leg's.
+        dense_query = retriever.retrieve(conn, "time off work each year", top_k=5)
+
+    assert any(r.lexical_rank is not None for r in lexical_query), (
+        "no result carried a lexical rank — the BM25 leg is not reaching the retriever"
+    )
+    assert any(r.dense_rank is not None for r in dense_query), (
+        "no result carried a dense rank — the vector leg is not reaching the retriever"
+    )
+
+
+def test_retriever_returns_at_most_top_k(clean_schema):
+    """The fused candidate pool is much larger than `top_k`, so a retriever
+    that forgot to truncate would flood the prompt with unranked context."""
+    _ingest_fixtures()
+    retriever = HybridRerankRetriever()
+
+    with get_connection() as conn:
+        assert len(retriever.retrieve(conn, "policy", top_k=2)) == 2
+        assert len(retriever.retrieve(conn, "policy", top_k=1)) == 1
+
+
 def test_lexical_leg_matches_an_exact_rare_term(clean_schema):
     """Guards against the BM25 leg silently returning nothing, which would
     leave the 'hybrid' retriever running on the dense leg alone."""

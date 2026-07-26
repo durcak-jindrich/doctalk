@@ -106,6 +106,26 @@ def test_an_empty_file_is_rejected_with_a_readable_reason(client):
     assert "empty" in result["error"].lower()
 
 
+def test_a_file_over_the_size_limit_is_rejected_before_it_is_parsed(client, monkeypatch):
+    """The ceiling is a memory bound — parsing loads the whole file at once."""
+    monkeypatch.setattr(settings, "max_upload_bytes", 512)
+
+    response = upload(client, ("big.md", b"# Big\n\n" + b"x" * 600))
+
+    (result,) = response.json()["results"]
+    assert result["status"] == "rejected"
+    assert "limit" in result["error"].lower()
+    assert response.json()["workspace"]["used"] == 0
+
+
+def test_a_file_within_the_size_limit_is_still_accepted(client, monkeypatch):
+    monkeypatch.setattr(settings, "max_upload_bytes", 512)
+
+    response = upload(client, ("small.md", b"# Small\n\nWell under the limit."))
+
+    assert response.json()["results"][0]["status"] == "ingested"
+
+
 def test_the_workspace_cap_is_enforced_at_the_api(client):
     files = [(f"doc-{i}.md", f"# Doc {i}\n\nContent number {i}.".encode()) for i in range(6)]
     response = upload(client, *files)
@@ -153,7 +173,10 @@ def test_ask_answers_from_a_real_uploaded_document(client):
     document_id = citation["chunk_id"].split("#")[0]
     chunk_ids = {c["id"] for c in client.get(f"/api/documents/{document_id}").json()["chunks"]}
     assert citation["chunk_id"] in chunk_ids
-    assert citation["dense_rank"] or citation["lexical_rank"]
+    # Both legs, not `or`: either one alone would pass that and hide a
+    # retriever that had quietly stopped being hybrid.
+    assert citation["dense_rank"] is not None
+    assert citation["lexical_rank"] is not None
 
 
 def test_ask_refuses_when_the_workspace_is_empty(client):
