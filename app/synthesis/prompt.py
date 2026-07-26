@@ -81,6 +81,29 @@ def build_messages(question: str, chunks: list[RetrievedChunk]) -> list[Message]
     ]
 
 
+def build_summary_messages(question: str, chunks: list[RetrievedChunk]) -> list[Message]:
+    """Prompt for the summarize tool.
+
+    Same grounding contract as a Q&A turn — one system prompt, so the citation
+    and no-outside-knowledge rules cannot drift between the two routes. Only
+    the task framing differs: summarize the sources rather than answer from
+    them, and override rule 7's "a few sentences" with a longer budget.
+    """
+    user_content = (
+        f"SOURCES\n{build_sources_block(chunks)}\n\n"
+        f"REQUEST\n{question.strip()}\n\n"
+        "Summarize what the SOURCES above say, in at most one short paragraph "
+        "per document. Cover only what is written there, cite every point with "
+        "[n] markers, and do not add context of your own. These sources are the "
+        "opening sections of the documents, not the whole of them — do not "
+        "present the summary as complete coverage."
+    )
+    return [
+        Message(role="system", content=SYSTEM_PROMPT),
+        Message(role="user", content=user_content),
+    ]
+
+
 def build_correction_message(problem: str, source_count: int) -> Message:
     valid_range = "1" if source_count == 1 else f"1-{source_count}"
     return Message(

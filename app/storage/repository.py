@@ -105,6 +105,34 @@ def get_chunks(conn: Connection, document_id: str) -> list[dict]:
         return cur.fetchall()
 
 
+def get_leading_chunks(conn: Connection, per_document: int) -> list[dict]:
+    """The first `per_document` chunks of every document, in reading order.
+
+    Backs the summarize tool. Relevance ranking is the wrong selector for
+    "summarize the documents" — there is no query to be relevant to — so
+    sources are chosen structurally instead: each document's opening, every
+    document represented, ordered by upload then position.
+    """
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
+            SELECT id, document_id, filename, text, section_path, page_number
+            FROM (
+                SELECT c.id, c.document_id, c.text, c.section_path, c.page_number,
+                       c.chunk_index, d.filename, d.uploaded_at,
+                       row_number() OVER (
+                           PARTITION BY c.document_id ORDER BY c.chunk_index
+                       ) AS position
+                FROM chunks c JOIN documents d ON d.id = c.document_id
+            ) ranked
+            WHERE position <= %s
+            ORDER BY uploaded_at, chunk_index
+            """,
+            (per_document,),
+        )
+        return cur.fetchall()
+
+
 def delete_document(conn: Connection, document_id: str) -> bool:
     with conn.cursor() as cur:
         cur.execute("DELETE FROM documents WHERE id = %s", (document_id,))

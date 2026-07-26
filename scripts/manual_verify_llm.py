@@ -16,9 +16,24 @@ immediately -- e.g. delete source 1 and the model should refuse instead.
 """
 
 from app.config import settings
+from app.graph import answer_question, build_answer_graph
 from app.llm import LLMError, OpenRouterClient
 from app.retrieval import RetrievedChunk
-from app.synthesis import build_messages, synthesize
+from app.synthesis import build_messages
+
+
+class StaticRetriever:
+    """Stands in for retrieval so this script needs no database."""
+
+    def __init__(self, chunks: list[RetrievedChunk]):
+        self.chunks = chunks
+
+    def retrieve(self, conn, query: str, top_k: int | None = None) -> list[RetrievedChunk]:
+        return list(self.chunks)
+
+
+#: The graph requires a connection; `StaticRetriever` never touches it.
+NO_DATABASE = object()
 
 # Stand-ins for retriever output. Source 2 is a plausible distractor: a
 # grounded answer must cite [1] and leave it alone. `rerank_score` is set well
@@ -72,9 +87,10 @@ def main() -> None:
     print(f"\n{SEP}\nSTEP 2 - ONE REAL OPENROUTER CALL\n{SEP}")
     try:
         client = OpenRouterClient()
+        graph = build_answer_graph(StaticRetriever(SOURCES), client)
         # max_attempts=1: no corrective retry, so this script can never spend
         # more than the single call it advertises.
-        answer = synthesize(QUESTION, SOURCES, client, max_attempts=1)
+        answer = answer_question(NO_DATABASE, QUESTION, graph=graph, max_attempts=1)
     except LLMError as exc:
         print(f"\nFAIL - the call did not go through:\n       {exc}\n")
         raise SystemExit(1) from exc

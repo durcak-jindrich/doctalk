@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     min_rerank_score: float = -5.0
     synthesis_max_attempts: int = 2
 
+    # Summarize tool: total chunks fed to a whole-workspace summary, split
+    # evenly across the uploaded documents so every one is represented.
+    summary_max_chunks: int = 12
+
     # Workspace
     max_documents: int = 5
 

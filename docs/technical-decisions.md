@@ -176,11 +176,42 @@ provider won't produce on demand are covered offline against a stubbed SDK.
 
 ## Agentic orchestration (LangGraph)
 
-Production `/ask` entry point, not an optional wrapper: `retrieve` →
-`synthesize` → `governance`, plus a `summarize` tool for "summarize document
-X" that reuses retrieval and stays cited. Built and unit-tested as plain
-functions first (Phases 2–3), wrapped as nodes in Phase 4 — build
-sequencing, not a sign the graph is optional.
+Production `/ask` entry point, not an optional wrapper:
+`route` → (`retrieve` | `gather_summary_sources`) → `draft` → `govern`.
+Built and unit-tested as plain functions first (Phases 2–3), decomposed into
+nodes in Phase 4 — build sequencing, not a sign the graph is optional.
+
+**The graph owns the governance loop; there is no second pipeline.** Phase 3's
+`synthesize()` held the retry as a Python `for` loop. Keeping both would mean
+two implementations of the groundedness policy that could drift, so the loop
+moved into the graph and `app/synthesis/` was reduced to primitives (prompt,
+validator, refusal vocabulary). Trade-off: one more indirection to read, in
+exchange for a single place where an answer can reach a user.
+
+**The corrective retry is a graph edge, not an inner loop.** As an edge it
+appears in the run's node path, so an answer that needed a correction is
+visibly distinct from one that did not — which is what the observability panel
+and the Phase 9 evaluation report on. `govern` enforces the attempt budget, so
+the cycle is bounded.
+
+**Refusals are written by nodes, not by edges.** An edge function cannot write
+state, and a refusal's *reason* is state the caller needs; so a node that
+decides to stop sets `answer`, and the edge after it only asks whether
+`answer` is set. Both source nodes can end a run before any LLM call.
+
+**Routing is a regex, not an LLM classifier.** Classifying every question with
+a model would spend quota per turn on a decision two patterns settle, and
+would be non-deterministic to test. Cost: recall — an unusual phrasing of
+"summarize" falls through to retrieval, which still answers. That is the safe
+direction to fail in.
+
+**The summarize tool selects sources structurally, not by relevance.** For
+"summarize the documents" there is no query to be relevant to, so it takes
+each document's opening chunks under a budget split across the workspace —
+every document represented, prompt bounded. Only whole-workspace requests
+route here; "summarize the leave policy" names a topic and goes to retrieval.
+Summaries pass through the same `govern` node, so they are cited or refused
+like any other answer.
 
 ## UI/UX approach
 

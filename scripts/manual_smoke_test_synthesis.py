@@ -1,11 +1,12 @@
-"""Manual smoke test for DocTalk Phase 3 (grounded synthesis + citation governance).
+"""Manual smoke test for DocTalk Phases 3-4 (grounded answering via the graph).
 
 Picks up where `scripts/manual_smoke_test.py` stops: it ingests a small document
-set, retrieves against it, and drives the real `synthesize()` loop.
+set and drives the real LangGraph `/ask` pipeline over it — routing, retrieval,
+drafting, and citation governance.
 
 Run from the project root:
     uv run python -m scripts.manual_smoke_test_synthesis           # no LLM calls
-    uv run python -m scripts.manual_smoke_test_synthesis --live    # 3 LLM calls
+    uv run python -m scripts.manual_smoke_test_synthesis --live    # ~6 LLM calls
 
 Without `--live` this exercises the governance loop with a scripted fake client
 and costs nothing. `--live` adds the checks that need a real model — grounded
@@ -22,10 +23,11 @@ DESTRUCTIVE: step 0 drops and re-bootstraps the schema.
 import sys
 
 from app.config import settings
+from app.graph import answer_question, build_answer_graph, classify
 from app.llm import LLMError, OpenRouterClient
 from app.retrieval import HybridRerankRetriever
 from app.storage import get_connection, ingest_document, reset_schema
-from app.synthesis import Answer, RefusalReason, synthesize
+from app.synthesis import Answer, RefusalReason
 from tests.fakes import FakeLLMClient
 
 SEP = "=" * 78
@@ -80,6 +82,7 @@ def show(answer: Answer) -> None:
     usage = answer.total_usage
     verdict = f"REFUSED ({answer.refusal_reason})" if answer.refused else "ANSWERED"
     print(f"    verdict: {verdict}, attempts={answer.attempts}")
+    print(f"    path:    {answer.route} :: {' -> '.join(answer.steps)}")
     print(f"    text:    {answer.text}")
     for citation in answer.citations:
         print(
@@ -95,15 +98,12 @@ def show(answer: Answer) -> None:
     )
 
 
-def ask(question: str, client, *, top_k: int | None = None) -> Answer:
+def ask(question: str, client, **kwargs) -> Answer:
+    """One full trip through the production graph."""
     print(f"\n  --- Question: {question!r} ---")
+    graph = build_answer_graph(RETRIEVER, client)
     with get_connection() as conn:
-        chunks = RETRIEVER.retrieve(conn, question, top_k=top_k)
-    print(
-        f"    retrieved {len(chunks)} chunk(s), best rerank score "
-        f"{max((c.rerank_score for c in chunks), default=float('nan')):+.2f}"
-    )
-    answer = synthesize(question, chunks, client)
+        answer = answer_question(conn, question, graph=graph, **kwargs)
     show(answer)
     return answer
 
@@ -190,36 +190,62 @@ def main() -> None:
             "the model followed instructions embedded in document content"
         )
         ok("injected instruction ignored; document text stayed data, not command")
+
+        # -----------------------------------------------------------------------
+        section("5. A bare summary request routes to the summarize tool")
+        answer = ask("Summarize the documents", client)
+        assert answer.route == "summarize", "a bare summary request must not go to retrieval"
+        assert "retrieve" not in answer.steps
+        assert not answer.refused, "the workspace has documents, so a summary is possible"
+        assert answer.citations, "a summary is governed like any other answer"
+        cited_docs = {citation.document_id for citation in answer.citations}
+        note(f"documents represented in the summary: {sorted(cited_docs)}")
+        ok("summary produced from document openings, with resolvable citations")
     except (SkipLive, LLMError) as e:
         print(f"\n  SKIP - live checks not run: {e}")
 
     # ---------------------------------------------------------------------------
-    section("5. Governance loop, driven with a scripted fake client")
-    with get_connection() as conn:
-        chunks = RETRIEVER.retrieve(conn, "vacation days", top_k=3)
-    print(f"  retrieved {len(chunks)} chunks: {[c.chunk_id for c in chunks]}")
+    section("6. Routing is decided without an LLM call")
+    for question, expected in [
+        ("Summarize the documents", "summarize"),
+        ("What is this document about?", "summarize"),
+        ("How many vacation days do full-time employees get?", "qa"),
+        ("Summarize the vacation policy", "qa"),
+    ]:
+        actual = classify(question)
+        assert actual == expected, f"{question!r} routed to {actual}, expected {expected}"
+        print(f"  {expected:>9} <- {question!r}")
+    ok("router is deterministic and costs nothing")
+
+    # ---------------------------------------------------------------------------
+    section("7. Governance loop, driven through the graph with a scripted fake client")
 
     print("\n  --- fabricated marker, corrected on retry ---")
     fake = FakeLLMClient(["Employees get 15 days [99].", "Employees get 15 days [1]."])
-    answer = synthesize("How many vacation days?", chunks, fake)
-    show(answer)
+    answer = ask("How many vacation days?", fake)
     assert not answer.refused and answer.attempts == 2
+    assert answer.steps.count("draft") == 2, "the retry must be a second trip through the graph"
     ok("invalid citation triggered exactly one corrective retry, then passed")
 
     print("\n  --- fabricated marker, never corrected -> refusal, not pass-through ---")
     fake = FakeLLMClient(["Employees get 90 days [99].", "Employees get 90 days [98]."])
-    answer = synthesize("How many vacation days?", chunks, fake)
-    show(answer)
+    answer = ask("How many vacation days?", fake)
     assert answer.refused and answer.refusal_reason is RefusalReason.UNGROUNDED
     assert "90 days" not in answer.text, "an unvalidated answer leaked to the user"
     ok("ungrounded answer withheld after the retry budget was spent")
 
     print("\n  --- answer with no citations at all -> same treatment ---")
     fake = FakeLLMClient(["Employees get 90 days.", "Employees get 90 days."])
-    answer = synthesize("How many vacation days?", chunks, fake)
-    show(answer)
+    answer = ask("How many vacation days?", fake)
     assert answer.refused and answer.refusal_reason is RefusalReason.UNGROUNDED
     ok("an uncited answer is treated as ungrounded, never shown")
+
+    print("\n  --- an ungrounded *summary* is refused the same way ---")
+    fake = FakeLLMClient(["Everything is fine [99].", "Everything is fine [98]."])
+    answer = ask("Summarize the documents", fake)
+    assert answer.route == "summarize"
+    assert answer.refused and answer.refusal_reason is RefusalReason.UNGROUNDED
+    ok("both routes share one governance node, so neither can bypass it")
 
     section("DONE. Everything above should read OK / NOTE, with no FAIL or traceback.")
 

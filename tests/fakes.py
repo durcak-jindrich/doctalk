@@ -3,6 +3,22 @@
 from app.llm import LLMClient, LLMResponse, Message, TokenUsage
 from app.retrieval import RetrievedChunk
 
+#: Stand-in for the psycopg connection the graph passes around. The fakes
+#: never touch it, so its only job is to be not-None.
+FAKE_CONN = object()
+
+
+class FakeRetriever:
+    """Returns preset chunks, so the graph can be driven without a database."""
+
+    def __init__(self, chunks: list[RetrievedChunk]):
+        self.chunks = chunks
+        self.queries: list[str] = []
+
+    def retrieve(self, conn, query: str, top_k: int | None = None) -> list[RetrievedChunk]:
+        self.queries.append(query)
+        return list(self.chunks)
+
 
 class FakeLLMClient(LLMClient):
     """Replays scripted replies and records what it was asked.

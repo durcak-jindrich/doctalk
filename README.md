@@ -5,10 +5,9 @@ Grounded Q&A over a small set of internal documents. Upload 1–5 files
 content, with citations back to the originating chunk/document. If nothing
 relevant is found, DocTalk says so instead of guessing.
 
-> **Status: early build (Phase 3 of `PLAN.md`).** Ingestion, hybrid retrieval,
-> and grounded synthesis with validated citations work end to end at the code
-> level. No API/UI yet, and not yet wrapped in the LangGraph graph — see
-> [Project status](#project-status).
+> **Status: early build (Phase 4 of `PLAN.md`).** Ingestion, hybrid retrieval,
+> and grounded answering with validated citations work end to end through the
+> LangGraph pipeline. No API/UI yet — see [Project status](#project-status).
 
 Built as an interview case study; the brief is in
 [`docs/assignment.md`](docs/assignment.md).
@@ -34,16 +33,24 @@ Upload (PDF/DOCX/MD)
 
 Ask
    → LangGraph pipeline:
-       retrieve  (dense pgvector + lexical pg_search, RRF-fused,
-                  cross-encoder reranked)
-       → synthesize (LLM answers strictly from retrieved chunks)
-       → governance (validates every citation resolves to a real,
-                      retrieved chunk; refuses if retrieval was empty)
-   → Answer + citations (+ observability metadata: latency, tokens, cost)
+       route     (question vs. whole-workspace summary — deterministic,
+                  costs no LLM call)
+         ├ retrieve (dense pgvector + lexical pg_search, RRF-fused,
+         │           cross-encoder reranked; refuses here if nothing
+         │           relevant was found, before any LLM call)
+         └ gather_summary_sources (the summarize tool: each document's
+                     opening chunks, budget split across the workspace)
+       → draft   (LLM answers strictly from the selected sources)
+       → govern  (validates every citation resolves to a real source;
+                  sends one correction back to `draft`, then refuses)
+   → Answer + citations (+ observability metadata: node path, attempts,
+                          latency, tokens, cost)
 ```
 
 Everything downstream of "Ask" runs through one LangGraph graph — no separate
-simple/agentic mode.
+simple/agentic mode, and both routes share the one `govern` node, so a summary
+is cited or refused exactly like an answer. The corrective retry is a real
+edge, so `answer.steps` shows whether an answer needed one.
 
 ## How groundedness is enforced
 
@@ -137,12 +144,12 @@ how each phase was verified. Both reset the document workspace:
 ```bash
 docker compose up -d db
 uv run python -m scripts.manual_smoke_test                    # ingestion + retrieval
-uv run python -m scripts.manual_smoke_test_synthesis          # + governance, fake LLM
-uv run python -m scripts.manual_smoke_test_synthesis --live   # + real answers (3 LLM calls)
+uv run python -m scripts.manual_smoke_test_synthesis          # + graph, fake LLM
+uv run python -m scripts.manual_smoke_test_synthesis --live   # + real answers (~6 LLM calls)
 ```
 
-*(Today `/health` is the only HTTP endpoint — ingestion, retrieval and
-synthesis run as Python functions but aren't wired to routes yet. The
+*(Today `/health` is the only HTTP endpoint — the graph runs as a Python call,
+`answer_question(conn, question)`, but isn't wired to a route yet. The
 upload → ask → citations demo script lands with Phase 5.)*
 
 ## Repository layout
@@ -157,8 +164,8 @@ upload → ask → citations demo script lands with Phase 5.)*
 | `app/storage/` | Postgres/`pgvector` persistence, workspace cap |
 | `app/retrieval/` | Hybrid dense+lexical retriever, RRF fusion, reranking |
 | `app/llm/` | `LLMClient` interface + OpenRouter adapter |
-| `app/synthesis/` | Grounding prompt, citation validation, refusal policy |
-| `app/graph/` | LangGraph graph: retrieve → synthesize → governance |
+| `app/synthesis/` | Grounding prompts, citation validation, refusal vocabulary |
+| `app/graph/` | The `/ask` graph: route → retrieve/summarize → draft → govern |
 | `migrations/` | Versioned schema SQL + `apply.sh`, the psql runner the `migrate` service uses |
 | `scripts/reset_db.py` | Drop and replay all migrations — local dev only |
 | `scripts/manual_smoke_test*.py` | Manual phase-verification walkthroughs |
@@ -190,7 +197,11 @@ headlines:
 
 ## Limitations
 
-- No API/UI yet — the pipeline runs as direct Python calls.
+- No API/UI yet — the graph runs as a direct Python call.
+- **Summaries cover each document's opening, not the whole document** — the
+  prompt says so, but a summary is a partial view by construction.
+- **Summary routing is pattern-based**, so an unusual phrasing falls through
+  to retrieval; it still answers, just from ranked chunks.
 - **Citation validation proves resolution, not entailment**: it guarantees the
   cited chunk was retrieved and shown to the model, not that it supports the
   claim. Faithfulness is measured in the Phase 9 evaluation.
@@ -210,8 +221,8 @@ headlines:
 
 ## Project status
 
-Tracking [`PLAN.md`](PLAN.md). Current: **Phase 3 — Grounded synthesis &
-citation governance** (complete, not yet wired to an API).
+Tracking [`PLAN.md`](PLAN.md). Current: **Phase 4 — Agentic orchestration
+(LangGraph)** (complete, not yet wired to an API).
 
 | Phase | Status |
 |---|---|
@@ -219,7 +230,7 @@ citation governance** (complete, not yet wired to an API).
 | 1 — Ingestion & storage | Done |
 | 2 — Hybrid retrieval + reranking | Done |
 | 3 — Grounded synthesis & citation governance | Done |
-| 4 — Agentic orchestration (LangGraph) | Not started |
+| 4 — Agentic orchestration (LangGraph) | Done |
 | 5 — API + frontend | Not started |
 | 6 — Observability instrumentation | Not started |
 | 7 — Testing | Not started |

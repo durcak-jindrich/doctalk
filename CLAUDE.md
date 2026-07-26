@@ -51,8 +51,8 @@ works — see "Session workflow" below.
   `sentence-transformers` CrossEncoder reranker
 - **LLM:** `LLMClient` interface → `OpenRouterClient`, model configurable
   via env var
-- **Orchestration:** LangGraph graph (retrieve → synthesize → governance,
-  plus a summarize tool) as the production `/ask` pipeline
+- **Orchestration:** LangGraph graph (route → retrieve | summarize-tool →
+  draft → govern) as the production `/ask` pipeline
 - **Frontend:** static HTML/CSS/vanilla JS served by FastAPI, with an
   observability panel per answer
 - **Containerization:** Docker Compose locally (`app` + `paradedb/paradedb`);
@@ -90,10 +90,11 @@ order and phase scope: `PLAN.md`.
 - `app/retrieval/` — `HybridRerankRetriever`: dense (`pgvector`) + lexical
   (`pg_search`) search, RRF fusion, cross-encoder rerank
 - `app/llm/` — `LLMClient` interface + `OpenRouterClient` adapter
-- `app/synthesis/` — grounding prompt, deterministic citation validator,
-  refusal policy (`synthesize()` is the Phase 3 pipeline as a plain function)
-- `app/graph/` — LangGraph graph wiring retrieve → synthesize →
-  governance (+ summarize tool) into the `/ask` pipeline
+- `app/synthesis/` — grounding prompts, deterministic citation validator,
+  refusal vocabulary (primitives only; the graph owns the control flow)
+- `app/graph/` — the `/ask` pipeline: route → retrieve or summarize-tool →
+  draft → govern, with the corrective retry as a real edge.
+  `answer_question(conn, question)` is the single entry point
 - `migrations/` — versioned schema SQL + `apply.sh`, the psql runner the
   one-shot `migrate` Compose service executes before the backend starts
 - `scripts/reset_db.py` — drop and replay all migrations (local dev only)
@@ -107,9 +108,10 @@ order and phase scope: `PLAN.md`.
 - `PLAN.md` — phased implementation plan (source of truth for build order)
 - `docker-compose.yml` / `Dockerfile` — local and containerized run paths
 
-As of now Phases 0–3 are built (ingestion, hybrid retrieval, grounded
-synthesis with citation governance); `app/api/` and `app/graph/` are still
-empty stubs. See `README.md`'s status table and `PLAN.md` for phase status.
+As of now Phases 0–4 are built (ingestion, hybrid retrieval, grounded
+answering with citation governance, LangGraph orchestration); `app/api/` is
+still an empty stub. See `README.md`'s status table and `PLAN.md` for phase
+status.
 
 ## Rules
 - After each phase, explicitly test the output, sanity-check assumptions,

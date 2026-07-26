@@ -8,6 +8,7 @@ from .repository import (
     delete_document,
     get_chunks,
     get_document,
+    get_leading_chunks,
     list_documents,
 )
 
@@ -21,6 +22,7 @@ __all__ = [
     "get_chunks",
     "get_connection",
     "get_document",
+    "get_leading_chunks",
     "ingest_document",
     "list_documents",
     "migration_files",

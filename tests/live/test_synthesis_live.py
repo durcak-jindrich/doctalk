@@ -16,9 +16,9 @@ chunks are constructed directly.
 import pytest
 
 from app.config import settings
+from app.graph import answer_question, build_answer_graph
 from app.llm import LLMError, OpenRouterClient
-from app.synthesis import synthesize
-from tests.fakes import make_chunk
+from tests.fakes import FAKE_CONN, FakeRetriever, make_chunk
 
 pytestmark = pytest.mark.live
 
@@ -48,7 +48,12 @@ def test_real_model_answers_from_sources_with_a_valid_citation():
     except LLMError as exc:
         pytest.skip(str(exc))
 
-    answer = synthesize("How many vacation days do full-time employees get?", CHUNKS, client)
+    # The real graph, with retrieval stubbed out — this test is about the
+    # provider, prompt, and validator, not about the database.
+    graph = build_answer_graph(FakeRetriever(CHUNKS), client)
+    answer = answer_question(
+        FAKE_CONN, "How many vacation days do full-time employees get?", graph=graph
+    )
 
     assert not answer.refused, f"real model refused an answerable question: {answer.text}"
     assert answer.citations, "an accepted answer must carry at least one citation"
