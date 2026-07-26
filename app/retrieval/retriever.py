@@ -4,6 +4,8 @@ from pgvector import Vector
 from psycopg import Connection
 from psycopg.rows import dict_row
 
+from app.config import settings
+
 from .embedder import embed_texts
 from .reranker import rerank as cross_encoder_rerank
 
@@ -78,7 +80,17 @@ class HybridRerankRetriever:
         self.leg_top_k = leg_top_k
         self.fused_top_k = fused_top_k
 
-    def retrieve(self, conn: Connection, query: str, top_k: int = 5) -> list[RetrievedChunk]:
+    def retrieve(
+        self, conn: Connection, query: str, top_k: int | None = None
+    ) -> list[RetrievedChunk]:
+        """Top-`top_k` chunks for `query`, defaulting to `RETRIEVAL_TOP_K`.
+
+        The default is read from settings rather than hard-coded here, so
+        there is one place the deployed value comes from — a second literal
+        default would silently win wherever a caller forgot to pass it.
+        """
+        if top_k is None:
+            top_k = settings.retrieval_top_k
         query_vector = embed_texts([query])[0]
 
         dense_ids = _dense_search(conn, query_vector, self.leg_top_k)

@@ -18,6 +18,7 @@ Built as an interview case study; the brief is in
 - [How groundedness is enforced](#how-groundedness-is-enforced)
 - [Tech stack](#tech-stack)
 - [Quickstart](#quickstart)
+- [LLM calls in tests](#llm-calls-in-tests)
 - [Repository layout](#repository-layout)
 - [Key decisions & assumptions](#key-decisions--assumptions)
 - [Limitations](#limitations)
@@ -105,10 +106,31 @@ uv run uvicorn app.main:app --reload
 
 **Tests / lint:**
 ```bash
-uv run pytest        # fast suite; no LLM calls, no API key needed
-uv run pytest -m live  # adds the live-LLM tests (spends OpenRouter quota)
+uv run pytest        # fast suite — no LLM calls, no API key needed
 uv run ruff check .
 ```
+
+### LLM calls in tests
+
+**`uv run pytest` never calls OpenRouter.** The suite runs against a fake
+`LLMClient`, so it needs no API key, spends no quota, and stays fast and
+deterministic. This is enforced, not a convention: `addopts = -m 'not live'`
+in `pyproject.toml` deselects live tests unless you ask for them.
+
+**Exactly one test makes a real call** — `tests/live/test_synthesis_live.py`,
+marked `live`. Run it when the OpenRouter integration itself is what you want
+to check: after changing `LLM_MODEL`, the adapter, or the grounding prompt,
+and once before a demo. Not on every commit, and not in the normal dev loop.
+
+```bash
+uv run pytest -m live    # 1 real call; skips cleanly if no API key is set
+```
+
+It asserts structure only — that a real model answers with a citation that
+resolves, and that usage is captured — never particular wording, so it does
+not break when the model changes. Everything a real provider *can't* be made
+to produce on demand (no choices, null content, rate-limit and retired-slug
+errors) is covered offline in `tests/unit/test_openrouter_client.py`.
 
 **Manual walkthroughs** — print the pipeline's internals step by step, and are
 how each phase was verified. Both reset the document workspace:

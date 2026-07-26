@@ -99,7 +99,7 @@ def show(answer: Answer) -> None:
 def ask(question: str, client, *, top_k: int | None = None) -> Answer:
     print(f"\n  --- Question: {question!r} ---")
     with get_connection() as conn:
-        chunks = RETRIEVER.retrieve(conn, question, top_k=top_k or settings.retrieval_top_k)
+        chunks = RETRIEVER.retrieve(conn, question, top_k=top_k)
     print(
         f"    retrieved {len(chunks)} chunk(s), best rerank score "
         f"{max((c.rerank_score for c in chunks), default=float('nan')):+.2f}"

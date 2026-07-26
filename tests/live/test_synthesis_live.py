@@ -1,10 +1,16 @@
 """The one test that spends real OpenRouter quota.
 
-Deselected by default (`addopts = -m 'not live'`); run with `uv run pytest -m live`.
-Deliberately a single call with structural assertions only — it proves the
-adapter, prompt, and citation validator work against a real model, not that a
-particular model phrases an answer a particular way. No database needed: the
-retrieved chunks are constructed directly.
+Deselected by default (`addopts = -m 'not live'` in pyproject.toml). Run it
+with `uv run pytest -m live` when the OpenRouter integration itself is what
+you want to check — after changing LLM_MODEL, the adapter, or the grounding
+prompt, and once before a demo. Not part of the normal dev loop.
+
+Deliberately one call with structural assertions only: it proves the adapter,
+prompt, and citation validator work against a real model, not that a given
+model phrases an answer a given way, so a model swap doesn't break it. The
+failure paths a real provider won't produce on demand live offline in
+tests/unit/test_openrouter_client.py. No database needed — the retrieved
+chunks are constructed directly.
 """
 
 import pytest

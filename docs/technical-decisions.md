@@ -142,9 +142,17 @@ nothing and works offline.
 
 **Free slugs churn and throttle:** the original default 404'd (retired) and a
 replacement 429'd on every call. Handled with a raised SDK retry budget and
-404/429 mapped to typed errors naming the fix. Live calls are opt-in
-(`pytest -m live`, `--live` on the smoke script) so ordinary development
-spends no quota.
+404/429 mapped to typed errors naming the fix.
+
+**Live calls are opt-in, and exactly one test makes one.** A suite that hits a
+paid, rate-limited, non-deterministic third party on every run is slow,
+flaky, and quietly expensive — so the default suite uses a fake `LLMClient`
+and `pytest` is configured to deselect `live`-marked tests. But mocking
+everything would never catch a retired model slug or a changed response
+shape, so one `live` test stays, run deliberately (`pytest -m live`) when the
+OpenRouter integration is the thing being checked. It asserts structure, not
+wording, so a model change doesn't break it; the failure modes a real
+provider won't produce on demand are covered offline against a stubbed SDK.
 
 ## Agentic orchestration (LangGraph)
 
