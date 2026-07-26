@@ -107,6 +107,16 @@ Hybrid retrieval is baseline, so persistence is baseline too.
   one-time dev-time operation.
 - **`documents.char_count`** is summed extracted-text length (post-parse),
   a rough size indicator, not the raw file's byte size.
+- **Schema bootstrap lives in `scripts/init_db.py`, not `ingest_document`.**
+  Originally `init_schema()` ran lazily inside the first ingest call;
+  corrected so schema readiness is a deploy-time guarantee instead of a
+  side effect of whichever request happens to arrive first — a fresh DB
+  hit by list/ask/delete before any upload would otherwise 500, and
+  concurrent first-time `CREATE TABLE/INDEX IF NOT EXISTS` calls aren't
+  guaranteed atomic across sessions. Wired as a one-shot `migrate` Compose
+  service that runs before `app` starts. Alembic considered and rejected —
+  no further schema migrations are anticipated at this project's scope, so
+  one idempotent script is sufficient; revisit if that changes.
 
 ## Phase 2 implementation notes
 

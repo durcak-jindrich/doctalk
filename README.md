@@ -90,12 +90,14 @@ cp .env.example .env
 **Run everything (app + Postgres/ParadeDB) via Docker:**
 ```bash
 docker compose up --build
+# `migrate` bootstraps the schema against `db`, then `app` starts.
 # API at http://localhost:8000, health check at /health
 ```
 
 **Run the API locally against a Postgres you manage yourself:**
 ```bash
 uv sync
+uv run python -m scripts.init_db   # one-time schema bootstrap
 uv run uvicorn app.main:app --reload
 ```
 
@@ -123,6 +125,7 @@ upload → ask → citations — once Phase 5 lands.)*
 | `app/retrieval/` | Hybrid dense+lexical retriever, RRF fusion, reranking |
 | `app/llm/` | `LLMClient` interface + OpenRouter adapter |
 | `app/graph/` | LangGraph graph: retrieve → synthesize → governance |
+| `scripts/init_db.py` | One-shot DB schema bootstrap (extensions/tables/indexes) — run before the backend starts |
 | `tests/unit/`, `tests/integration/` | Fake-LLM fast suite + live e2e test |
 | `docs/` | Brief, technical decisions, and (later) security/governance/eval docs |
 | `PLAN.md` | Phased build plan — source of truth for what's done vs pending |
@@ -139,6 +142,11 @@ headlines:
 - **Retrieval:** hybrid dense (`pgvector`) + lexical (`pg_search`/BM25),
   RRF-fused, then cross-encoder reranked — chosen over lexical-only (misses
   paraphrases) or dense-only (weak on exact IDs/names/numbers).
+- **Schema bootstrap is an explicit pre-start step** (`scripts/init_db.py`,
+  run as its own `migrate` service before `app` starts in Docker Compose) —
+  not created lazily on first ingest. Keeps schema readiness a deploy-time
+  guarantee rather than a side effect of whichever request happens to
+  arrive first.
 - **Groundedness is non-negotiable:** the LLM answers only from retrieved
   chunks; a deterministic governance step validates every citation against
   what was actually retrieved and refuses rather than fabricates when

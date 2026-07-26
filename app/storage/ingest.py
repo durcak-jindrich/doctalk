@@ -17,7 +17,6 @@ from .repository import (
     insert_chunks,
     insert_document,
 )
-from .schema import init_schema
 
 
 @dataclass
@@ -38,8 +37,6 @@ def ingest_document(filename: str, content: bytes) -> IngestResult:
     document_id = make_document_id(filename, content)
 
     with get_connection() as conn:
-        init_schema(conn, settings.embedding_dim)
-
         if document_exists(conn, document_id):
             existing = get_document(conn, document_id)
             return IngestResult(

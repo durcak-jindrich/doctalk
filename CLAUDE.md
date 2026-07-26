@@ -91,6 +91,9 @@ order and phase scope: `PLAN.md`.
 - `app/llm/` — `LLMClient` interface + `OpenRouterClient` adapter
 - `app/graph/` — LangGraph graph wiring retrieve → synthesize →
   governance (+ summarize tool) into the `/ask` pipeline
+- `scripts/init_db.py` — one-shot DB schema bootstrap (extensions, tables,
+  indexes), run once before the backend starts, not created lazily by
+  application code
 - `tests/unit/`, `tests/integration/` — fast fake-LLM suite + one live
   end-to-end test
 - `docs/` — `assignment.md` (brief), `technical-decisions.md` (why),

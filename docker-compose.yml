@@ -16,6 +16,17 @@ services:
       timeout: 5s
       retries: 10
 
+  migrate:
+    build: .
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://doctalk:doctalk@db:5432/doctalk
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["python", "-m", "scripts.init_db"]
+
   app:
     build: .
     restart: unless-stopped
@@ -26,8 +37,8 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      db:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   doctalk_pgdata:
