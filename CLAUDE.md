@@ -94,9 +94,9 @@ order and phase scope: `PLAN.md`.
   refusal policy (`synthesize()` is the Phase 3 pipeline as a plain function)
 - `app/graph/` — LangGraph graph wiring retrieve → synthesize →
   governance (+ summarize tool) into the `/ask` pipeline
-- `scripts/init_db.py` — one-shot DB schema bootstrap (extensions, tables,
-  indexes), run once before the backend starts, not created lazily by
-  application code
+- `migrations/` — versioned schema SQL + `apply.sh`, the psql runner the
+  one-shot `migrate` Compose service executes before the backend starts
+- `scripts/reset_db.py` — drop and replay all migrations (local dev only)
 - `scripts/manual_smoke_test*.py` — manual end-to-end walkthroughs used to
   verify each phase (ingestion/retrieval, then grounded answering)
 - `tests/unit/`, `tests/integration/` — fast fake-LLM suite + opt-in

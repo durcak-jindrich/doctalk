@@ -11,7 +11,7 @@ database are removed.
 """
 
 from app.retrieval import HybridRerankRetriever, embedding_dim
-from app.storage import get_chunks, get_connection, ingest_document, init_schema
+from app.storage import get_chunks, get_connection, ingest_document, reset_schema
 
 # Two documents, clearly different topics, each with enough sections to produce
 # several chunks. The IT one is a plausible distractor for the HR question.
@@ -75,12 +75,8 @@ PSQL = "docker compose exec db psql -U doctalk -d doctalk"
 
 def main() -> None:
     # --- 1. Clean slate -----------------------------------------------------
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute("DROP TABLE IF EXISTS chunks")
-            cur.execute("DROP TABLE IF EXISTS documents")
-        init_schema(conn, embedding_dim())
-    print(f"\nEmpty schema created (vector width {embedding_dim()}, read from the model).")
+    reset_schema()
+    print(f"\nEmpty schema created (vector width {embedding_dim()}).")
 
     # --- 2. Ingest both documents ------------------------------------------
     print(f"\n{SEP}\nSTEP 1 - INGEST\n{SEP}")

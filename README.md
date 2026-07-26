@@ -93,14 +93,14 @@ cp .env.example .env    # add OPENROUTER_API_KEY (free tier works)
 **Everything (app + Postgres/ParadeDB) via Docker:**
 ```bash
 docker compose up --build
-# `migrate` bootstraps the schema, then `app` starts on :8000 (/health)
+# `migrate` applies migrations/ (~1s), then `app` starts on :8000 (/health)
 # Fresh start: docker compose down -v && docker compose up -d
 ```
 
 **API against a Postgres you manage yourself:**
 ```bash
 uv sync
-uv run python -m scripts.init_db   # one-time schema bootstrap
+uv run python -m scripts.reset_db   # drop + replay migrations/ (destructive)
 uv run uvicorn app.main:app --reload
 ```
 
@@ -159,7 +159,8 @@ upload → ask → citations demo script lands with Phase 5.)*
 | `app/llm/` | `LLMClient` interface + OpenRouter adapter |
 | `app/synthesis/` | Grounding prompt, citation validation, refusal policy |
 | `app/graph/` | LangGraph graph: retrieve → synthesize → governance |
-| `scripts/init_db.py` | One-shot schema bootstrap, run before the backend starts |
+| `migrations/` | Versioned schema SQL + `apply.sh`, the psql runner the `migrate` service uses |
+| `scripts/reset_db.py` | Drop and replay all migrations — local dev only |
 | `scripts/manual_smoke_test*.py` | Manual phase-verification walkthroughs |
 | `tests/` | Fake-LLM fast suite + opt-in live tests |
 | `docs/` | Brief, technical decisions, and (later) security/governance/eval |
@@ -180,8 +181,8 @@ headlines:
   (`handbook.pdf > Sick Leave (p. 4)`) with the `chunk_id` behind it.
 - **Uploaded text is untrusted input** — the prompt frames sources as data, and
   the synthesis smoke test includes a document that tries to override it.
-- **Schema bootstrap is an explicit pre-start step**, not lazy creation on
-  first ingest.
+- **Schema changes are versioned migrations**, applied by a pre-start step that
+  runs on the database image — never created lazily on first ingest.
 - **Dedup is keyed on (filename, content)** — re-uploading identical bytes is a
   no-op, but the same file renamed takes a second slot.
 - **OpenRouter behind an `LLMClient` interface**; Azure OpenAI is the

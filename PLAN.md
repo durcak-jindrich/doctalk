@@ -72,9 +72,9 @@ Ordering reflects build dependencies only — every phase is required.
 **Phase 0 — Setup & infrastructure**
 Repo scaffold (`app/`, `tests/`), `pyproject.toml`, Docker Compose
 (`app` + `paradedb/paradedb`, named volume), `.env.example`, `.gitignore`.
-Database schema (extensions/tables/indexes) is bootstrapped by a dedicated
-`scripts/init_db.py`, run once before the backend starts — a `migrate`
-one-shot Compose service locally — rather than created lazily by
+Database schema lives in versioned `migrations/*.sql`, applied before the
+backend starts by `migrations/apply.sh` — a one-shot `migrate` Compose
+service running psql on the database image — rather than created lazily by
 application code on first ingest (see `docs/technical-decisions.md`).
 Fill in `CLAUDE.md`'s Tech Stack / Commands / Architecture TODOs. Initial
 commit.

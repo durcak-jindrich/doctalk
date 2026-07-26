@@ -16,16 +16,20 @@ services:
       timeout: 5s
       retries: 10
 
+  # Schema bootstrap. Deliberately runs on the database image, not the app
+  # image: applying DDL needs psql and nothing else, so the database is ready
+  # while the application image is still building. It also means no API keys
+  # are handed to the migration step.
   migrate:
-    build: .
-    env_file:
-      - .env
+    image: paradedb/paradedb:latest-pg16
     environment:
       DATABASE_URL: postgresql://doctalk:doctalk@db:5432/doctalk
+    volumes:
+      - ./migrations:/migrations:ro
+    entrypoint: ["bash", "/migrations/apply.sh"]
     depends_on:
       db:
         condition: service_healthy
-    command: ["python", "-m", "scripts.init_db"]
 
   app:
     build: .

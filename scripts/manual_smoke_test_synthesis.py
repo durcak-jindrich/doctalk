@@ -24,9 +24,8 @@ import sys
 from app.config import settings
 from app.llm import LLMError, OpenRouterClient
 from app.retrieval import HybridRerankRetriever
-from app.storage import get_connection, ingest_document
+from app.storage import get_connection, ingest_document, reset_schema
 from app.synthesis import Answer, RefusalReason, synthesize
-from scripts.init_db import main as init_db
 from tests.fakes import FakeLLMClient
 
 SEP = "=" * 78
@@ -112,10 +111,7 @@ def ask(question: str, client, *, top_k: int | None = None) -> Answer:
 def main() -> None:
     # ---------------------------------------------------------------------------
     section("0. Reset schema and ingest the fixture documents")
-    with get_connection() as conn, conn.cursor() as cur:
-        cur.execute("DROP TABLE IF EXISTS chunks")
-        cur.execute("DROP TABLE IF EXISTS documents")
-    init_db()
+    reset_schema()
     for filename, content in [("hr-policy.md", HR_POLICY), ("travel.md", INJECTION_DOC)]:
         result = ingest_document(filename, content)
         print(f"  {result}")

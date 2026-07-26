@@ -1,7 +1,7 @@
 """Manual smoke test for DocTalk Phase 0-2 (ingestion + hybrid retrieval).
 
 Exercises everything that exists at the code level today: no API/UI/LLM yet,
-so this drives scripts.init_db / app.storage / app.retrieval directly, the same
+so this drives app.storage / app.retrieval directly, the same
 way the future API layer eventually will. Read the output top to bottom.
 
 Run from the project root:
@@ -18,7 +18,6 @@ throwaway database if you want to keep a demo workspace intact.
 import io
 from pathlib import Path
 
-import psycopg
 import tiktoken
 from docx import Document as DocxDocument
 
@@ -35,8 +34,8 @@ from app.storage import (
     get_document,
     ingest_document,
     list_documents,
+    reset_schema,
 )
-from scripts.init_db import main as init_db
 
 SEP = "=" * 78
 ENC = tiktoken.get_encoding(_ENCODING)
@@ -60,24 +59,12 @@ def tokens(text: str) -> int:
 
 def main() -> None:
     # ---------------------------------------------------------------------------
-    section("0. Reset schema via the real bootstrap path (scripts/init_db.py)")
-    try:
-        with get_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute("DROP TABLE IF EXISTS chunks")
-                cur.execute("DROP TABLE IF EXISTS documents")
-    except psycopg.ProgrammingError as e:
-        raise SystemExit(
-            f"\nFAIL: could not open a connection ({e}).\n"
-            "get_connection() registers the pgvector adapter eagerly, so it needs the\n"
-            "`vector` extension to already exist. Create the extensions once by hand:\n"
-            "  docker compose exec db psql -U doctalk -d doctalk "
-            "-c 'CREATE EXTENSION vector; CREATE EXTENSION pg_search;'"
-        ) from e
-    init_db()
+    section("0. Reset schema by replaying migrations/ (scripts/reset_db.py)")
+    versions = reset_schema()
     ok(
-        f"schema (re)created, embedding_dim={embedding_dim()} (derived from "
-        f"{settings.embedding_model}), max_documents={settings.max_documents}"
+        f"schema (re)created from {', '.join(versions)}; "
+        f"embedding_dim={embedding_dim()} ({settings.embedding_model}), "
+        f"max_documents={settings.max_documents}"
     )
 
     # ---------------------------------------------------------------------------

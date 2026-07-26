@@ -1,14 +1,16 @@
 import psycopg
 import pytest
 
-from app.retrieval import embedding_dim
-from app.storage import get_connection, init_schema
+from app.config import settings
+from app.storage import reset_schema
 
 
 @pytest.fixture(autouse=True)
 def _require_db():
+    # A plain connect, not get_connection(): the latter registers the pgvector
+    # adapter, which a database that has never been migrated does not have yet.
     try:
-        with get_connection():
+        with psycopg.connect(settings.database_url):
             pass
     except psycopg.OperationalError:
         pytest.skip(
@@ -18,9 +20,5 @@ def _require_db():
 
 @pytest.fixture
 def clean_schema():
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute("DROP TABLE IF EXISTS chunks")
-            cur.execute("DROP TABLE IF EXISTS documents")
-        init_schema(conn, embedding_dim())
+    reset_schema()
     yield

@@ -74,18 +74,38 @@ boundary — `section_path` accuracy matters more than packing efficiency.
 - **Overlap is a token tail, not a character tail** — predictable token cost,
   at the price of an approximate `char_start` for the overlap span only.
 
-## Schema bootstrap: an explicit pre-start step
+## Schema migrations: versioned SQL, applied by the database image
 
-`scripts/init_db.py`, run as a one-shot `migrate` Compose service, not
-lazily on first ingest. Schema readiness is a deploy-time guarantee rather
-than a side effect of whichever request arrives first (a fresh DB hit by
-ask/list/delete would otherwise 500). Alembic rejected — no further
-migrations anticipated at this scope.
+Numbered files in `migrations/`, applied by `migrations/apply.sh` as a
+one-shot `migrate` Compose service — not lazily on first ingest. Schema
+readiness is a deploy-time guarantee rather than a side effect of whichever
+request arrives first (a fresh DB hit by ask/list/delete would otherwise 500).
 
-**Vector width is derived, not configured:** `embedding_dim()` reads it off
-the loaded model and feeds the `VECTOR(N)` column. An `EMBEDDING_DIM` env var
-was removed — two settings that must agree is a silent-mismatch footgun.
-Changing to a model with a different width requires dropping `chunks`.
+**The runner is psql on the ParadeDB image, not Python on the app image.**
+Applying DDL needs a database client and nothing else. The previous version
+ran in the application container, so bootstrapping the schema imported torch
+and loaded the embedding model — ~8s warm, ~30s cold — and could not start
+until the app image had finished building. Now it is ~1s and runs in parallel
+with that build. It also means no API keys are passed to the migration step.
+
+**Applied migrations are tracked and checksummed.** `schema_migrations` records
+version and sha256; the whole run is one transaction holding
+`pg_advisory_xact_lock`, so replicas starting together serialise rather than
+race, and a mid-run failure leaves no half-applied schema. Editing an applied
+file is a hard error, not silent drift. Alembic rejected: its value is
+autogenerating diffs from SQLAlchemy models, which this project does not have.
+
+**Vector width is a literal in the migration** (`VECTOR(384)`), because a
+migration must replay identically on every database — deriving it from a
+loaded model made the schema depend on runtime state. The mismatch this
+guards against (`EMBEDDING_MODEL` swapped for a different width) is caught by
+`tests/unit/test_migrations.py` instead, at no runtime cost. Changing embedder
+is then a new migration rather than a volume wipe.
+
+`app/storage/migrations.py` replays the same `.sql` files from Python for
+`scripts/reset_db.py` and the test fixtures, so a dev machine needs no psql.
+It only ever rebuilds from scratch; incremental application lives in the
+shell runner alone.
 
 ## Grounded synthesis & citation governance
 
