@@ -1,7 +1,7 @@
 import psycopg
 import pytest
 
-from app.config import settings
+from app.retrieval import embedding_dim
 from app.storage import get_connection, init_schema
 
 
@@ -22,5 +22,5 @@ def clean_schema():
         with conn.cursor() as cur:
             cur.execute("DROP TABLE IF EXISTS chunks")
             cur.execute("DROP TABLE IF EXISTS documents")
-        init_schema(conn, settings.embedding_dim)
+        init_schema(conn, embedding_dim())
     yield

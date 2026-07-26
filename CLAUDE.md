@@ -116,6 +116,7 @@ are empty stubs pending Phase 1 onward. See `PLAN.md` for phase status.
   only, and `.env` is gitignored.
 - Any non-obvious design decision goes in the README, not just in chat —
   the interview will reference the README
+- Follow the best software engineering an UI/UX practices (coding, design, logging, testing, layouts, clean code, readable, maintainable project)
 
 ## Documentation
  - maintain a running decisions/methodology log that will be used for presentation

@@ -31,9 +31,18 @@ def _dense_search(conn: Connection, query_vector: list[float], limit: int) -> li
 
 
 def _lexical_search(conn: Connection, query_text: str, limit: int) -> list[str]:
+    """BM25 search over `chunks.text`.
+
+    Deliberately uses `paradedb.match` rather than the `text @@@ '<query>'`
+    string form: the string form feeds raw input to ParadeDB's query-string
+    parser, so ordinary punctuation in a user's question (`:`, `-`, `"`, `(`)
+    is read as query syntax and raises a parse error. `paradedb.match` takes
+    the input as plain terms, tokenized by the field's indexed analyzer.
+    """
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT id FROM chunks WHERE text @@@ %s ORDER BY paradedb.score(id) DESC LIMIT %s",
+            "SELECT id FROM chunks WHERE id @@@ paradedb.match('text', %s) "
+            "ORDER BY paradedb.score(id) DESC LIMIT %s",
             (query_text, limit),
         )
         return [row[0] for row in cur.fetchall()]

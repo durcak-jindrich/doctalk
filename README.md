@@ -92,6 +92,7 @@ cp .env.example .env
 docker compose up --build
 # `migrate` bootstraps the schema against `db`, then `app` starts.
 # API at http://localhost:8000, health check at /health
+# Tear down and start fresh: docker compose down -v && docker compose up -d
 ```
 
 **Run the API locally against a Postgres you manage yourself:**
@@ -99,6 +100,7 @@ docker compose up --build
 uv sync
 uv run python -m scripts.init_db   # one-time schema bootstrap
 uv run uvicorn app.main:app --reload
+# Remove only data from DB: docker compose exec db psql -U doctalk -d doctalk -c "DROP TABLE IF EXISTS chunks; DROP TABLE IF EXISTS documents;"
 ```
 
 **Tests / lint:**
@@ -126,6 +128,7 @@ upload → ask → citations — once Phase 5 lands.)*
 | `app/llm/` | `LLMClient` interface + OpenRouter adapter |
 | `app/graph/` | LangGraph graph: retrieve → synthesize → governance |
 | `scripts/init_db.py` | One-shot DB schema bootstrap (extensions/tables/indexes) — run before the backend starts |
+| `scripts/manual_smoke_test.py` | Manual end-to-end walkthrough of ingestion + retrieval (prints DB/vector/retrieval-leg state; destructive to the workspace) |
 | `tests/unit/`, `tests/integration/` | Fake-LLM fast suite + live e2e test |
 | `docs/` | Brief, technical decisions, and (later) security/governance/eval docs |
 | `PLAN.md` | Phased build plan — source of truth for what's done vs pending |
@@ -147,6 +150,11 @@ headlines:
   not created lazily on first ingest. Keeps schema readiness a deploy-time
   guarantee rather than a side effect of whichever request happens to
   arrive first.
+- **Upload dedup is keyed on (filename, content), not content alone:**
+  `document_id` is `<filename-slug>-<content-hash>`, so re-uploading identical
+  bytes is a no-op, but the *same* file renamed is treated as a second
+  document and occupies a second workspace slot. Accepted for a 5-document
+  workspace where the filename is part of how a user identifies a source.
 - **Groundedness is non-negotiable:** the LLM answers only from retrieved
   chunks; a deterministic governance step validates every citation against
   what was actually retrieved and refuses rather than fabricates when
@@ -168,9 +176,11 @@ phases land — e.g. reranker context-window limits, multi-lingual support.)*
 - PDF text extraction (`pdfplumber`) assumes a text layer; scanned/image-only
   PDFs (no OCR step) will extract no text and fail ingestion with an
   explicit error rather than silently producing an empty document.
-- `EMBEDDING_DIM` is fixed at schema-creation time — changing
-  `EMBEDDING_MODEL` to one with a different output dimension requires
-  dropping the `chunks` table (see `docs/technical-decisions.md`).
+- The embedding vector width is derived from `EMBEDDING_MODEL` (read off the
+  loaded model) but baked into the `chunks.embedding` column at
+  schema-creation time — switching to a model with a different output
+  dimension requires dropping the `chunks` table (see
+  `docs/technical-decisions.md`).
 - OpenRouter free-tier models are rate-limited and lower-quality than
   paid alternatives; acceptable for a demo, flagged as a production
   swap-out.

@@ -98,13 +98,39 @@ Hybrid retrieval is baseline, so persistence is baseline too.
   `char_start` is an approximation (genuine chunk content offsets stay
   exact). Same approximation applies to the rare hard split of a
   single oversized sentence.
+- **Chunk budget is set by the embedding model's input window, not by taste.**
+  `target_tokens=240` with a 12.5% overlap, because `all-MiniLM-L6-v2` accepts
+  256 tokens and silently truncates beyond that — the original 400-token
+  target meant roughly the last third of a full chunk was stored, reranked and
+  citable but invisible to the dense leg. The overlap tail is also counted
+  against the budget (atoms are split at `target - overlap`), so a packed
+  chunk cannot reach `target + overlap`; a unit test asserts the 256-token
+  ceiling. 240 tokens sits inside the 200–400 band that suits policy-style
+  prose: roughly one answerable claim plus its surrounding context.
+  Widening it means switching to a wider-window embedder (e.g.
+  `bge-base-en-v1.5`, 512), which also means rebuilding the `chunks` table.
 - **Embeddings are L2-normalized** so `pgvector`'s `vector_cosine_ops`
   index agrees with a plain dot product.
-- **`EMBEDDING_DIM` is config, not derived** — the `chunks.embedding`
-  column is a fixed-width `VECTOR(N)`. Swapping `EMBEDDING_MODEL` for a
-  different output dimension needs the `chunks` table (or the whole
-  `doctalk_pgdata` volume) dropped — no migration path, acceptable as a
-  one-time dev-time operation.
+- **The lexical leg queries via `paradedb.match`, not `text @@@ '<query>'`.**
+  The string form runs raw input through ParadeDB's query-string parser, so
+  ordinary punctuation in a real question (`:`, `-`, `"`, `(`) is read as
+  query syntax and raises `could not parse query string` — found by
+  `scripts/manual_smoke_test.py`, which now asserts against it, with an
+  integration regression test alongside. `paradedb.match` takes the input as
+  plain terms tokenized by the field's indexed analyzer, keeping the same
+  default OR semantics without an escaping layer of our own.
+- **Vector width is derived from the model, not configured.**
+  `app.retrieval.embedding_dim()` reads
+  `get_embedding_dimension()` off the loaded `EMBEDDING_MODEL`, and
+  `scripts/init_db.py` feeds that into the `VECTOR(N)` column. An earlier
+  `EMBEDDING_DIM` env var was removed: two independent settings that must
+  agree are a silent-mismatch footgun (a swapped model with a stale dim only
+  fails later, at insert time). Cost of deriving it: `migrate` now loads the
+  embedding model to bootstrap the schema — acceptable, since the model is
+  needed by the app process anyway and is cached after first download. The
+  column is still fixed-width, so swapping `EMBEDDING_MODEL` for a different
+  dimension needs the `chunks` table (or the whole `doctalk_pgdata` volume)
+  dropped — no migration path, acceptable as a one-time dev-time operation.
 - **`documents.char_count`** is summed extracted-text length (post-parse),
   a rough size indicator, not the raw file's byte size.
 - **Schema bootstrap lives in `scripts/init_db.py`, not `ingest_document`.**

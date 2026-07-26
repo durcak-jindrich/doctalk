@@ -12,9 +12,9 @@ class Settings(BaseSettings):
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     llm_model: str = "meta-llama/llama-3.1-8b-instruct:free"
 
-    # Retrieval
+    # Retrieval. Vector width is not configured here — it is read from the
+    # loaded model by `app.retrieval.embedding_dim()`.
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
-    embedding_dim: int = 384
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
     # Workspace

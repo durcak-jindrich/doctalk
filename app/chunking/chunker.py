@@ -77,7 +77,7 @@ def _tail_atom(buffer: list[_Atom], overlap_tokens: int, enc: tiktoken.Encoding)
 
 
 def chunk_blocks(
-    blocks: list[Block], target_tokens: int = 400, overlap_ratio: float = 0.125
+    blocks: list[Block], target_tokens: int = 240, overlap_ratio: float = 0.125
 ) -> list[Chunk]:
     """Pack paragraph-level blocks into token-budgeted chunks.
 
@@ -85,13 +85,22 @@ def chunk_blocks(
     ``target_tokens`` with a sliding overlap of ``overlap_ratio``; a single
     paragraph longer than the budget is split on sentence boundaries (never
     mid-sentence, except as a last resort for a single oversized sentence).
+
+    ``target_tokens`` is sized to stay inside the embedding model's 256-token
+    input window (`all-MiniLM-L6-v2`): a longer chunk is silently truncated at
+    embed time, so its tail would still be stored, reranked and cited while
+    being invisible to the dense leg. Raise it only together with an embedding
+    model that has a wider window.
     """
     enc = tiktoken.get_encoding(_ENCODING)
     overlap_tokens = int(target_tokens * overlap_ratio)
+    # New content per chunk must leave room for the overlap tail that gets
+    # prepended on flush, otherwise a packed chunk reaches target + overlap.
+    content_tokens = target_tokens - overlap_tokens
 
     atoms: list[_Atom] = []
     for block in blocks:
-        atoms.extend(_atoms_from_block(block, enc, target_tokens))
+        atoms.extend(_atoms_from_block(block, enc, content_tokens))
 
     chunks: list[Chunk] = []
     buffer: list[_Atom] = []

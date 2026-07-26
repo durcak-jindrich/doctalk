@@ -34,8 +34,10 @@ CREATE INDEX IF NOT EXISTS chunks_bm25_idx ON chunks
 
 
 def init_schema(conn: Connection, embedding_dim: int) -> None:
-    """Create the schema if absent. Assumes `embedding_dim` never changes for
-    an existing database — swapping EMBEDDING_MODEL for one with a different
-    dimension requires dropping the `chunks` table (or the whole volume)."""
+    """Create the schema if absent. `embedding_dim` comes from the loaded
+    embedding model (`app.retrieval.embedding_dim()`) and is assumed never to
+    change for an existing database — swapping EMBEDDING_MODEL for one with a
+    different dimension requires dropping the `chunks` table (or the whole
+    volume)."""
     with conn.cursor() as cur:
         cur.execute(_SCHEMA_SQL.format(dim=embedding_dim))
