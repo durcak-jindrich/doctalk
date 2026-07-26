@@ -5,11 +5,12 @@ Grounded Q&A over a small set of internal documents. Upload 1–5 files
 content, with citations back to the originating chunk/document. If nothing
 relevant is found, DocTalk says so instead of guessing.
 
-> **Status: early build (Phase 2 of `PLAN.md`).** Ingestion (parse → chunk →
-> embed → store) and hybrid retrieval (dense + lexical, RRF-fused,
-> cross-encoder reranked) both work end to end at the code level. There is
-> no API/UI, LLM synthesis, or citations yet — see
-> [Project status](#project-status) for exactly what runs today.
+> **Status: early build (Phase 3 of `PLAN.md`).** Ingestion (parse → chunk →
+> embed → store), hybrid retrieval (dense + lexical, RRF-fused, cross-encoder
+> reranked), and grounded synthesis with validated citations all work end to
+> end at the code level. There is no API/UI yet, and the pipeline is not yet
+> wrapped in the LangGraph graph — see [Project status](#project-status) for
+> exactly what runs today.
 
 ## Contents
 - [What it does](#what-it-does)
@@ -57,6 +58,31 @@ Ask
 Everything downstream of "Ask" runs through one LangGraph graph — there is
 no separate simple/agentic mode; retrieval, synthesis, and citation
 governance are graph nodes from the start.
+
+### How groundedness is enforced
+
+Four independent gates, because "the prompt says not to hallucinate" is not
+a control:
+
+1. **Retrieval gate (before any LLM call).** No chunks retrieved, or the best
+   cross-encoder score below `MIN_RERANK_SCORE`, and DocTalk refuses without
+   spending a call. Dense search always returns *something*, so the relevance
+   score — not the presence of rows — is what's checked.
+2. **The prompt.** The model is given a numbered SOURCES list and told to
+   answer only from it, to cite every claim, and to reply `INSUFFICIENT_CONTEXT`
+   rather than fill a gap. Source text is explicitly framed as data, not
+   instruction, so an "ignore your instructions" line inside an uploaded
+   document is treated as quoted material.
+3. **Deterministic citation validation.** Every `[n]` marker is resolved in
+   code against the exact chunk list that was sent to the model. A marker that
+   doesn't resolve is a fabricated citation, and an answer with no markers at
+   all counts as ungrounded. This checks that a citation *resolves* — whether
+   the cited passage supports the claim is faithfulness, measured separately in
+   the Phase 9 evaluation.
+4. **Bounded retry, then refusal.** A failed validation buys exactly one
+   corrective retry; after that the draft is withheld and the user sees an
+   explicit refusal. An unvalidated answer is never shown with the bad citation
+   quietly stripped out.
 
 ## Tech stack
 
@@ -109,10 +135,19 @@ uv run pytest
 uv run ruff check .
 ```
 
-*(Today, `/health` is the only HTTP endpoint — ingestion (parse → chunk →
-embed → store) works as a Python function, `ingest_document()`, but isn't
-wired to an API route yet. This section will gain the actual demo script —
-upload → ask → citations — once Phase 5 lands.)*
+**Manual end-to-end walkthroughs** (these print the pipeline's internals step
+by step, and are how each phase was verified — both are destructive to the
+document workspace):
+```bash
+docker compose up -d db
+uv run python -m scripts.manual_smoke_test             # ingestion + retrieval
+uv run python -m scripts.manual_smoke_test_synthesis   # + grounded answers, refusals, governance
+```
+
+*(Today, `/health` is the only HTTP endpoint — ingestion, retrieval and
+synthesis work as Python functions (`ingest_document()`, `retrieve()`,
+`synthesize()`) but aren't wired to API routes yet. This section will gain the
+actual demo script — upload → ask → citations — once Phase 5 lands.)*
 
 ## Repository layout
 
@@ -126,9 +161,11 @@ upload → ask → citations — once Phase 5 lands.)*
 | `app/storage/` | Postgres/`pgvector` persistence, workspace cap enforcement |
 | `app/retrieval/` | Hybrid dense+lexical retriever, RRF fusion, reranking |
 | `app/llm/` | `LLMClient` interface + OpenRouter adapter |
+| `app/synthesis/` | Grounding prompt, citation parsing/validation, refusal policy |
 | `app/graph/` | LangGraph graph: retrieve → synthesize → governance |
 | `scripts/init_db.py` | One-shot DB schema bootstrap (extensions/tables/indexes) — run before the backend starts |
 | `scripts/manual_smoke_test.py` | Manual end-to-end walkthrough of ingestion + retrieval (prints DB/vector/retrieval-leg state; destructive to the workspace) |
+| `scripts/manual_smoke_test_synthesis.py` | Manual walkthrough of grounded answering: citations, both refusal gates, prompt injection, the governance retry loop |
 | `tests/unit/`, `tests/integration/` | Fake-LLM fast suite + live e2e test |
 | `docs/` | Brief, technical decisions, and (later) security/governance/eval docs |
 | `PLAN.md` | Phased build plan — source of truth for what's done vs pending |
@@ -158,7 +195,17 @@ headlines:
 - **Groundedness is non-negotiable:** the LLM answers only from retrieved
   chunks; a deterministic governance step validates every citation against
   what was actually retrieved and refuses rather than fabricates when
-  nothing relevant is found.
+  nothing relevant is found. See
+  [How groundedness is enforced](#how-groundedness-is-enforced).
+- **Citations are source numbers, not chunk IDs, on the wire.** The model
+  cites `[2]` against a numbered source list, and the number → `chunk_id`
+  mapping is rebuilt in code from the exact list it was sent — so a citation
+  physically cannot name a chunk that wasn't retrieved. The UI still shows the
+  human-readable source (`handbook.pdf > Sick Leave (p. 4)`) with the
+  `chunk_id` behind it.
+- **Uploaded document text is untrusted input.** The grounding prompt frames
+  sources as data rather than instruction, and the synthesis smoke test
+  includes a document that attempts to override the system prompt.
 - **LLM provider:** OpenRouter for local dev/demo, behind an `LLMClient`
   interface; direct Azure OpenAI documented as the production alternative.
 - **Runtime pinned to Python 3.12**, not the system's 3.14, because
@@ -166,11 +213,28 @@ headlines:
 
 ## Limitations
 
-*(Will expand with retrieval/synthesis-specific limitations as those
-phases land — e.g. reranker context-window limits, multi-lingual support.)*
+*(Will expand as later phases land — e.g. reranker context-window limits,
+multi-lingual support.)*
 
-- No API/UI yet — ingestion only runs as a direct Python call, see
+- No API/UI yet — the pipeline only runs as direct Python calls, see
   [Project status](#project-status).
+- **Citation validation proves resolution, not entailment.** It guarantees a
+  cited chunk was genuinely retrieved and shown to the model; it does not
+  verify that the chunk supports the claim. Faithfulness is measured
+  separately in the Phase 9 evaluation.
+- **The refusal threshold (`MIN_RERANK_SCORE`) is a tuned heuristic.** Set at
+  `-5.0` against observed score separation (covered questions score ≈ +7 to
+  +9, an in-domain-but-uncovered question ≈ −6, nonsense ≈ −11). Set it too
+  high and DocTalk refuses answerable questions; it is re-tuned against the
+  Phase 9 eval set.
+- **Prompt-injection resistance is best-effort, not a guarantee.** The
+  grounding rules hold against the injected document in the smoke test, but
+  no prompt-level defence is airtight — the real containment is that the model
+  can only cite retrieved chunks, so a successful injection still cannot
+  manufacture a valid citation.
+- **Free OpenRouter model slugs churn and throttle.** They get retired without
+  notice and rate-limit upstream; failures surface as an explicit error naming
+  the fix. A funded key and a paid model is the fix for a live demo.
 - Single bounded 5-document workspace by design, not a document library
   (see above) — not a limitation to "fix," a scope decision.
 - PDF text extraction (`pdfplumber`) assumes a text layer; scanned/image-only
@@ -187,15 +251,15 @@ phases land — e.g. reranker context-window limits, multi-lingual support.)*
 
 ## Project status
 
-Tracking [`PLAN.md`](PLAN.md)'s phases. Current: **Phase 2 — Hybrid
-retrieval + reranking** (complete, not yet wired to an API).
+Tracking [`PLAN.md`](PLAN.md)'s phases. Current: **Phase 3 — Grounded
+synthesis & citation governance** (complete, not yet wired to an API).
 
 | Phase | Status |
 |---|---|
 | 0 — Setup & infrastructure | Done |
 | 1 — Ingestion & storage | Done |
 | 2 — Hybrid retrieval + reranking | Done |
-| 3 — Grounded synthesis & citation governance | Not started |
+| 3 — Grounded synthesis & citation governance | Done |
 | 4 — Agentic orchestration (LangGraph) | Not started |
 | 5 — API + frontend | Not started |
 | 6 — Observability instrumentation | Not started |

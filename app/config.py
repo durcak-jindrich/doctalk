@@ -10,12 +10,27 @@ class Settings(BaseSettings):
     # LLM (OpenRouter, OpenAI-SDK-compatible)
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
-    llm_model: str = "meta-llama/llama-3.1-8b-instruct:free"
+    llm_model: str = "google/gemma-4-31b-it:free"
+    llm_temperature: float = 0.0
+    llm_max_tokens: int = 800
+    llm_timeout_seconds: float = 60.0
+    # Retries for transient provider failures (429/5xx), with the SDK's
+    # exponential backoff. Free-tier models are rate-limited upstream, so the
+    # default sits above the SDK's own default of 2.
+    llm_max_retries: int = 4
 
     # Retrieval. Vector width is not configured here — it is read from the
     # loaded model by `app.retrieval.embedding_dim()`.
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    retrieval_top_k: int = 5
+
+    # Synthesis & citation governance.
+    # `min_rerank_score` is the cross-encoder logit below which the best
+    # retrieved chunk counts as "nothing relevant" and DocTalk refuses instead
+    # of answering. Provisional — re-tuned against the Phase 9 eval set.
+    min_rerank_score: float = -5.0
+    synthesis_max_attempts: int = 2
 
     # Workspace
     max_documents: int = 5

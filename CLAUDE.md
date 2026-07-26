@@ -89,11 +89,15 @@ order and phase scope: `PLAN.md`.
 - `app/retrieval/` — `HybridRerankRetriever`: dense (`pgvector`) + lexical
   (`pg_search`) search, RRF fusion, cross-encoder rerank
 - `app/llm/` — `LLMClient` interface + `OpenRouterClient` adapter
+- `app/synthesis/` — grounding prompt, deterministic citation validator,
+  refusal policy (`synthesize()` is the Phase 3 pipeline as a plain function)
 - `app/graph/` — LangGraph graph wiring retrieve → synthesize →
   governance (+ summarize tool) into the `/ask` pipeline
 - `scripts/init_db.py` — one-shot DB schema bootstrap (extensions, tables,
   indexes), run once before the backend starts, not created lazily by
   application code
+- `scripts/manual_smoke_test*.py` — manual end-to-end walkthroughs used to
+  verify each phase (ingestion/retrieval, then grounded answering)
 - `tests/unit/`, `tests/integration/` — fast fake-LLM suite + one live
   end-to-end test
 - `docs/` — `assignment.md` (brief), `technical-decisions.md` (why),
@@ -102,8 +106,9 @@ order and phase scope: `PLAN.md`.
 - `PLAN.md` — phased implementation plan (source of truth for build order)
 - `docker-compose.yml` / `Dockerfile` — local and containerized run paths
 
-As of now, only the Phase 0 scaffold above exists — module directories
-are empty stubs pending Phase 1 onward. See `PLAN.md` for phase status.
+As of now Phases 0–3 are built (ingestion, hybrid retrieval, grounded
+synthesis with citation governance); `app/api/` and `app/graph/` are still
+empty stubs. See `README.md`'s status table and `PLAN.md` for phase status.
 
 ## Rules
 - After each phase, explicitly test the output, sanity-check assumptions,
