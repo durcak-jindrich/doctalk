@@ -5,10 +5,11 @@ Grounded Q&A over a small set of internal documents. Upload 1–5 files
 content, with citations back to the originating chunk/document. If nothing
 relevant is found, DocTalk says so instead of guessing.
 
-> **Status: baseline complete, instrumented, tested (Phase 7 of `PLAN.md`).**
-> Upload → ask → cited answer runs end to end in the browser, with per-node
-> timings and structured logs. Azure IaC and the evaluation report are still
-> to come — see [Project status](#project-status).
+> **Status: baseline complete, instrumented, tested, Azure-ready (Phase 8 of
+> `PLAN.md`).** Upload → ask → cited answer runs end to end in the browser,
+> with per-node timings, structured logs, and AAD-auth/Key Vault/Container
+> Apps IaC written and validated. The evaluation report is still to come —
+> see [Project status](#project-status).
 
 Built as an interview case study; the brief is in
 [`docs/assignment.md`](docs/assignment.md).
@@ -21,6 +22,7 @@ Built as an interview case study; the brief is in
 - [Demo script](#demo-script)
 - [LLM calls in tests](#llm-calls-in-tests)
 - [Observability](#observability)
+- [Azure deployment](#azure-deployment)
 - [Repository layout](#repository-layout)
 - [Key decisions & assumptions](#key-decisions--assumptions)
 - [Limitations](#limitations)
@@ -226,14 +228,34 @@ header and echoed in the answer payload — so a question about one answer leads
 straight to its log lines. An inbound `X-Trace-Id` is honoured for correlation
 across hops.
 
+## Azure deployment
+
+Container Apps + Azure Database for PostgreSQL + Key Vault + Entra ID (AAD),
+via Bicep in `infra/`. **Written and `az bicep build`-validated, not deployed
+against a live subscription** — full walkthrough, prerequisites, and one
+known gap (`pg_search` isn't on Azure Postgres Flexible Server's extension
+allow-list) in [`docs/azure-deployment.md`](docs/azure-deployment.md).
+
+- **Auth**: `AUTH_ENABLED=true` turns on Entra ID bearer-token validation
+  (`app/api/auth.py`) on every `/api/*` route — off by default, so a local
+  run needs no tenant. `/health` and the static frontend stay open, so a
+  load balancer or a first paint can always reach them.
+- **Secrets**: `AZURE_KEY_VAULT_URL` set → `app/config.py` loads
+  `DATABASE_URL`/`OPENROUTER_API_KEY` from Key Vault via the Container App's
+  user-assigned managed identity before `Settings` is built. Unset locally;
+  `.env` is used as-is.
+- **CI/CD**: example workflows in `.github/workflows/` — `ci.yml` (lint,
+  fake-LLM tests, Bicep syntax check, on every push) and `deploy.yml`
+  (manual: build/push to ACR, then deploy the Bicep template).
+
 ## Repository layout
 
 | Path | Purpose |
 |---|---|
 | `app/main.py` | FastAPI entrypoint |
-| `app/config.py` | Settings (`pydantic-settings`, from `.env`) |
+| `app/config.py` | Settings (`pydantic-settings`, from `.env`), Key Vault secret loading |
 | `app/observability.py` | Structured logging, trace ids, per-node step records |
-| `app/api/` | HTTP routes, request/response schemas, dependencies |
+| `app/api/` | HTTP routes, request/response schemas, dependencies, AAD auth |
 | `app/static/` | Frontend: HTML/CSS/vanilla JS, no build step |
 | `app/parsers/` | PDF/DOCX/MD → structured text |
 | `app/chunking/` | Structure-aware chunking + chunk ID scheme |
@@ -247,7 +269,9 @@ across hops.
 | `scripts/manual_smoke_test*.py` | Manual phase-verification walkthroughs |
 | `tests/golden.py` | Fixture documents + golden Q&A set, shared with the eval |
 | `tests/` | Fake-LLM fast suite + opt-in live tests |
-| `docs/` | Brief, technical decisions, and (later) security/governance/eval |
+| `docs/` | Brief, technical decisions, Azure deployment, and (later) security/governance/eval |
+| `infra/` | Bicep IaC: Container Apps, Postgres, Key Vault, managed identity, ACR |
+| `.github/workflows/` | Example CI (lint/test) and manual deploy workflows |
 | `PLAN.md` | Phased build plan — source of truth for what's done vs pending |
 
 ## Key decisions & assumptions
@@ -274,8 +298,10 @@ headlines:
 
 ## Limitations
 
-- **Single shared workspace, no auth** — anyone reaching the port sees and can
-  delete every document. AAD auth arrives in Phase 8.
+- **Single shared workspace** — every caller sees and can delete every
+  document; there is no per-user or per-tenant partitioning. AAD auth (see
+  [Azure deployment](#azure-deployment)) gates *who* can call the API, not
+  which documents they can see, since there is only ever one workspace.
 - **No streaming** — answers appear when governance has passed, which is the
   price of never showing an unvalidated citation.
 - **Summaries cover each document's opening, not the whole document** — the
@@ -301,9 +327,13 @@ headlines:
 
 ## Project status
 
-Tracking [`PLAN.md`](PLAN.md). Current: **Phase 7 — Testing**. The baseline
-the brief asks for — upload, ask, cited answers, runs locally end to end — is
-complete, instrumented, and covered.
+Tracking [`PLAN.md`](PLAN.md). Current: **Phase 8 — Azure readiness**. The
+baseline the brief asks for — upload, ask, cited answers, runs locally end to
+end — is complete, instrumented, and covered; the Azure deployment path
+(auth, secrets, IaC) is written and validated, not deployed against a live
+subscription — see [`docs/azure-deployment.md`](docs/azure-deployment.md)
+for the one known gap (`pg_search` isn't installable on Azure's managed
+Postgres) before that changes.
 
 | Phase | Status |
 |---|---|
@@ -315,7 +345,7 @@ complete, instrumented, and covered.
 | 5 — API + frontend | Done |
 | 6 — Observability instrumentation | Done |
 | 7 — Testing | Done |
-| 8 — Azure readiness | Not started |
+| 8 — Azure readiness | Done |
 | 9 — Evaluation | Not started |
 | 10 — Documentation (README finalization) | Not started |
 | 11 — Presentation prep | Not started |
@@ -324,5 +354,6 @@ complete, instrumented, and covered.
 
 - [`docs/assignment.md`](docs/assignment.md) — original brief
 - [`docs/technical-decisions.md`](docs/technical-decisions.md) — why each choice
+- [`docs/azure-deployment.md`](docs/azure-deployment.md) — Azure deployment walkthrough
 - [`PLAN.md`](PLAN.md) — phased build plan
 - [`CLAUDE.md`](CLAUDE.md) — working project conventions

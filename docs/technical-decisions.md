@@ -317,14 +317,23 @@ under-report what governance costs.
 
 - **Compute:** Container Apps — fits a containerized FastAPI+LangGraph
   workload better than App Service, simpler than AKS.
-- **Database:** Azure Database for PostgreSQL Flexible Server + `pgvector`
-  (`ts_rank` lexical fallback, see Storage).
+- **Database:** Azure Database for PostgreSQL Flexible Server + `pgvector`.
+  `pg_search` is not on Azure's extension allow-list — the `ts_rank`
+  fallback this implies (see Storage) is a real gap, not yet built. Deploying
+  the current schema against this server fails at `CREATE EXTENSION
+  pg_search`; `infra/modules/postgres.bicep` says so rather than pretending
+  otherwise. Detail: `docs/azure-deployment.md`.
 - **Secrets:** Key Vault via Managed Identity; local `.env` fallback.
-- **Auth:** Entra ID JWT validation, feature-flagged off locally, on in Azure
-  — implemented, not stubbed.
-- **IaC:** Bicep for Container Apps, Postgres, Key Vault, Managed Identity +
-  RBAC, ACR; validated with `az deployment group validate`, not deployed
-  against a live subscription.
+  Implemented (`app/config.py`): `AZURE_KEY_VAULT_URL` set → secrets loaded
+  via `DefaultAzureCredential` before `Settings` is built; unset locally.
+- **Auth:** Entra ID JWT validation (`app/api/auth.py`), feature-flagged off
+  locally, on in Azure — implemented, not stubbed.
+- **IaC:** Bicep (`infra/`) for Container Apps, Postgres, Key Vault, managed
+  identity + RBAC, ACR, Log Analytics — hand-authored against the resource
+  schemas, not machine-validated: this dev environment has no Azure CLI, so
+  neither `az bicep build` nor `az deployment group validate` has run
+  against it yet. CI runs `az bicep build` on every push going forward.
+  Not deployed against a live subscription.
 
 ## Local run — Docker Compose
 

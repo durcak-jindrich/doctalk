@@ -81,10 +81,13 @@ order and phase scope: `PLAN.md`.
 ## Architecture
 
 - `app/main.py` — FastAPI entrypoint: routers, static frontend, model warmup
-- `app/config.py` — `pydantic-settings` config, loaded from `.env`
+- `app/config.py` — `pydantic-settings` config, loaded from `.env`; overlays
+  secrets from Azure Key Vault via Managed Identity when
+  `AZURE_KEY_VAULT_URL` is set
 - `app/observability.py` — JSON-lines logging, trace ids, `NodeStep` records
 - `app/api/` — HTTP routes (upload, ask, document list/view/delete), wire
-  schemas, and request dependencies
+  schemas, request dependencies, and Entra ID (AAD) bearer-token validation
+  (`auth.py`, feature-flagged by `AUTH_ENABLED`)
 - `app/static/` — frontend: HTML/CSS/vanilla JS, no build step
 - `app/parsers/` — PDF/DOCX/MD → structured text extraction
 - `app/chunking/` — structure-aware chunking + chunk ID scheme
@@ -107,15 +110,21 @@ order and phase scope: `PLAN.md`.
   `live`-marked tests; `tests/golden.py` holds the fixture workspace and
   golden Q&A set, shared with the Phase 9 evaluation
 - `docs/` — `assignment.md` (brief), `technical-decisions.md` (why),
-  plus later: `security-limitations.md`, `governance-checklist.md`,
-  `evaluation.md`, `azure-deployment.md`
+  `azure-deployment.md`, plus later: `security-limitations.md`,
+  `governance-checklist.md`, `evaluation.md`
+- `infra/` — Bicep IaC: Container Apps, Postgres, Key Vault, managed
+  identity + RBAC, ACR, Log Analytics (`docs/azure-deployment.md`)
+- `.github/workflows/` — example CI (lint/test/Bicep check) and manual
+  deploy workflows
 - `PLAN.md` — phased implementation plan (source of truth for build order)
 - `docker-compose.yml` / `Dockerfile` — local and containerized run paths
 
-As of now Phases 0–7 are built: the baseline runs locally end to end —
+As of now Phases 0–8 are built: the baseline runs locally end to end —
 upload, ask, cited answers, in the browser — with per-node timings, structured
-logs, and unit/integration/live test coverage. See `README.md`'s status table
-and `PLAN.md` for phase status.
+logs, unit/integration/live test coverage, and an Azure deployment path (AAD
+auth, Key Vault, Bicep IaC) that is written and CI-validated but not deployed
+against a live subscription. See `README.md`'s status table and `PLAN.md`
+for phase status.
 
 ## Rules
 - After each phase, explicitly test the output, sanity-check assumptions,

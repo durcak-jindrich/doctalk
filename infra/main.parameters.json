@@ -1,0 +1,15 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "namePrefix": { "value": "doctalk" },
+    "environmentName": { "value": "dev" },
+    "postgresAdminLogin": { "value": "doctalkadmin" },
+    "postgresAdminPassword": { "value": "REPLACE_ME_AT_DEPLOY_TIME" },
+    "openRouterApiKey": { "value": "REPLACE_ME_AT_DEPLOY_TIME" },
+    "azureTenantId": { "value": "REPLACE_ME_WITH_YOUR_TENANT_ID" },
+    "azureClientId": { "value": "REPLACE_ME_WITH_YOUR_APP_REGISTRATION_CLIENT_ID" },
+    "imageTag": { "value": "latest" },
+    "llmModel": { "value": "google/gemma-4-31b-it:free" }
+  }
+}

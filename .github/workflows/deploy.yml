@@ -1,0 +1,87 @@
+name: Deploy to Azure
+
+# Manual only — this is an example workflow for docs/azure-deployment.md, not
+# a live pipeline against a real subscription. See that doc for the OIDC
+# federated-credential setup and the full list of repo secrets this expects.
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "dev"
+        type: choice
+        options: [dev, staging, prod]
+
+permissions:
+  id-token: write # OIDC federated login via azure/login — no stored client secret
+  contents: read
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.tag.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: tag
+        run: echo "value=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      # AZURE_CLIENT_ID/AZURE_TENANT_ID/AZURE_SUBSCRIPTION_ID here identify the
+      # *deployment* service principal (federated to this workflow via OIDC).
+      # That is a different identity from the app's own AAD_TENANT_ID/
+      # AAD_APP_CLIENT_ID below, which is the app registration DocTalk
+      # validates end-user tokens against — see infra/main.bicep's
+      # azureTenantId/azureClientId parameters.
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Log in to ACR
+        run: az acr login --name ${{ secrets.ACR_NAME }}
+
+      - name: Build and push image
+        run: |
+          docker build -t "${{ secrets.ACR_NAME }}.azurecr.io/doctalk:${{ steps.tag.outputs.value }}" .
+          docker push "${{ secrets.ACR_NAME }}.azurecr.io/doctalk:${{ steps.tag.outputs.value }}"
+
+  deploy-infra:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Validate
+        run: |
+          az deployment group validate \
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
+            --template-file infra/main.bicep \
+            --parameters infra/main.parameters.json \
+            --parameters imageTag="${{ needs.build-and-push.outputs.image-tag }}" \
+            --parameters postgresAdminPassword="${{ secrets.POSTGRES_ADMIN_PASSWORD }}" \
+            --parameters openRouterApiKey="${{ secrets.OPENROUTER_API_KEY }}" \
+            --parameters azureTenantId="${{ secrets.AAD_TENANT_ID }}" \
+            --parameters azureClientId="${{ secrets.AAD_APP_CLIENT_ID }}"
+
+      - name: Deploy
+        run: |
+          az deployment group create \
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
+            --template-file infra/main.bicep \
+            --parameters infra/main.parameters.json \
+            --parameters imageTag="${{ needs.build-and-push.outputs.image-tag }}" \
+            --parameters postgresAdminPassword="${{ secrets.POSTGRES_ADMIN_PASSWORD }}" \
+            --parameters openRouterApiKey="${{ secrets.OPENROUTER_API_KEY }}" \
+            --parameters azureTenantId="${{ secrets.AAD_TENANT_ID }}" \
+            --parameters azureClientId="${{ secrets.AAD_APP_CLIENT_ID }}"

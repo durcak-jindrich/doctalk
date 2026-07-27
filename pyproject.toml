@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Discuss your documents: grounded Q&A over 1-5 uploaded documents, with citations."
 requires-python = ">=3.12,<3.14"
 dependencies = [
+    "azure-identity>=1.19.0",
+    "azure-keyvault-secrets>=4.9.0",
     "fastapi>=0.140.0",
     "langgraph>=1.2.9",
     "openai>=2.48.0",
@@ -11,6 +13,7 @@ dependencies = [
     "pgvector>=0.5.0",
     "psycopg[binary]>=3.3.4",
     "pydantic-settings>=2.14.2",
+    "pyjwt[crypto]>=2.10.1",
     "python-docx>=1.2.0",
     "python-multipart>=0.0.32",
     "sentence-transformers>=5.6.1",
