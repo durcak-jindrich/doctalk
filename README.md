@@ -5,12 +5,14 @@ Grounded Q&A over a small set of internal documents. Upload 1–5 files
 content, with citations back to the originating chunk/document. If nothing
 relevant is found, DocTalk says so instead of guessing.
 
-> **Status: baseline complete, instrumented, tested, Azure-ready, evaluated
-> (Phase 9 of `PLAN.md`).** Upload → ask → cited answer runs end to end in
-> the browser, with per-node timings, structured logs, AAD-auth/Key
-> Vault/Container Apps IaC, and a golden-set evaluation report
-> ([`docs/evaluation.md`](docs/evaluation.md)). Final documentation and
-> presentation prep are what's left — see
+> **Status: baseline complete, instrumented, tested, Azure-ready, evaluated,
+> documented (Phase 10 of `PLAN.md`).** Upload → ask → cited answer runs end
+> to end in the browser, with per-node timings, structured logs, AAD-auth/Key
+> Vault/Container Apps IaC, a golden-set evaluation report
+> ([`docs/evaluation.md`](docs/evaluation.md)), and a security/governance
+> write-up ([`docs/security-limitations.md`](docs/security-limitations.md),
+> [`docs/governance-checklist.md`](docs/governance-checklist.md)).
+> Presentation prep is what's left — see
 > [Project status](#project-status).
 
 Built as an interview case study; the brief is in
@@ -26,6 +28,7 @@ Built as an interview case study; the brief is in
 - [Observability](#observability)
 - [Evaluation](#evaluation)
 - [Azure deployment](#azure-deployment)
+- [Security & governance](#security--governance)
 - [Repository layout](#repository-layout)
 - [Key decisions & assumptions](#key-decisions--assumptions)
 - [Limitations](#limitations)
@@ -270,6 +273,19 @@ allow-list) in [`docs/azure-deployment.md`](docs/azure-deployment.md).
   fake-LLM tests, Bicep syntax check, on every push) and `deploy.yml`
   (manual: build/push to ACR, then deploy the Bicep template).
 
+## Security & governance
+
+Trust boundaries, injection surfaces, data handling, and everything not
+built (rate limiting, audit trail, PII detection) in
+[`docs/security-limitations.md`](docs/security-limitations.md). A draft
+data-governance catalog entry plus a groundedness/access controls checklist
+in [`docs/governance-checklist.md`](docs/governance-checklist.md).
+
+The headline: uploaded documents and questions are treated as untrusted
+input throughout (parameterized SQL, text-node-only DOM insertion, sources
+framed as data in the prompt), and structured logs carry pipeline metadata
+only — never document or question content.
+
 ## Repository layout
 
 | Path | Purpose |
@@ -292,7 +308,7 @@ allow-list) in [`docs/azure-deployment.md`](docs/azure-deployment.md).
 | `scripts/evaluate.py` | Phase 9 evaluation — scores the golden set, writes `docs/evaluation.md` |
 | `tests/golden.py` | Fixture documents + golden Q&A set, shared with the eval |
 | `tests/` | Fake-LLM fast suite + opt-in live tests |
-| `docs/` | Brief, technical decisions, Azure deployment, evaluation, and (later) security/governance |
+| `docs/` | Brief, technical decisions, Azure deployment, evaluation, security & governance |
 | `infra/` | Bicep IaC: Container Apps, Postgres, Key Vault, managed identity, ACR |
 | `.github/workflows/` | Example CI (lint/test) and manual deploy workflows |
 | `PLAN.md` | Phased build plan — source of truth for what's done vs pending |
@@ -357,7 +373,7 @@ headlines:
 
 ## Project status
 
-Tracking [`PLAN.md`](PLAN.md). Current: **Phase 9 — Evaluation**. The
+Tracking [`PLAN.md`](PLAN.md). Current: **Phase 10 — Documentation**. The
 baseline the brief asks for — upload, ask, cited answers, runs locally end to
 end — is complete, instrumented, and covered; the Azure deployment path
 (auth, secrets, IaC) is written and validated, not deployed against a live
@@ -367,6 +383,12 @@ Postgres) before that changes. The golden-set evaluation
 ([`docs/evaluation.md`](docs/evaluation.md)) found 100% routing/outcome/
 retrieval/faithfulness on a live run — see its own caveats on sample size
 before reading that as more than "the pipeline behaves as intended".
+Documentation is now consolidated: architecture, assumptions, and
+limitations (this README), reasoning (`docs/technical-decisions.md`),
+and security/governance
+([`docs/security-limitations.md`](docs/security-limitations.md),
+[`docs/governance-checklist.md`](docs/governance-checklist.md)). Only
+presentation prep remains.
 
 | Phase | Status |
 |---|---|
@@ -380,7 +402,7 @@ before reading that as more than "the pipeline behaves as intended".
 | 7 — Testing | Done |
 | 8 — Azure readiness | Done |
 | 9 — Evaluation | Done |
-| 10 — Documentation (README finalization) | Not started |
+| 10 — Documentation (README finalization) | Done |
 | 11 — Presentation prep | Not started |
 
 ## Further reading
@@ -389,5 +411,7 @@ before reading that as more than "the pipeline behaves as intended".
 - [`docs/technical-decisions.md`](docs/technical-decisions.md) — why each choice
 - [`docs/azure-deployment.md`](docs/azure-deployment.md) — Azure deployment walkthrough
 - [`docs/evaluation.md`](docs/evaluation.md) — golden-set evaluation report
+- [`docs/security-limitations.md`](docs/security-limitations.md) — security posture, trust boundaries, known gaps
+- [`docs/governance-checklist.md`](docs/governance-checklist.md) — data-governance catalog entry draft + controls checklist
 - [`PLAN.md`](PLAN.md) — phased build plan
 - [`CLAUDE.md`](CLAUDE.md) — working project conventions

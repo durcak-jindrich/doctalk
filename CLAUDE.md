@@ -112,8 +112,8 @@ order and phase scope: `PLAN.md`.
   `live`-marked tests; `tests/golden.py` holds the fixture workspace and
   golden Q&A set, shared with `scripts/evaluate.py`
 - `docs/` — `assignment.md` (brief), `technical-decisions.md` (why),
-  `azure-deployment.md`, `evaluation.md`, plus later:
-  `security-limitations.md`, `governance-checklist.md`
+  `azure-deployment.md`, `evaluation.md`, `security-limitations.md`,
+  `governance-checklist.md`
 - `infra/` — Bicep IaC: Container Apps, Postgres, Key Vault, managed
   identity + RBAC, ACR, Log Analytics (`docs/azure-deployment.md`)
 - `.github/workflows/` — example CI (lint/test/Bicep check) and manual
@@ -121,13 +121,15 @@ order and phase scope: `PLAN.md`.
 - `PLAN.md` — phased implementation plan (source of truth for build order)
 - `docker-compose.yml` / `Dockerfile` — local and containerized run paths
 
-As of now Phases 0–9 are built: the baseline runs locally end to end —
+As of now Phases 0–10 are built: the baseline runs locally end to end —
 upload, ask, cited answers, in the browser — with per-node timings, structured
 logs, unit/integration/live test coverage, an Azure deployment path (AAD
 auth, Key Vault, Bicep IaC) that is written and CI-validated but not deployed
-against a live subscription, and a golden-set evaluation report
-(`docs/evaluation.md`). See `README.md`'s status table and `PLAN.md` for
-phase status.
+against a live subscription, a golden-set evaluation report
+(`docs/evaluation.md`), and consolidated security/governance documentation
+(`docs/security-limitations.md`, `docs/governance-checklist.md`). Phase 11
+(presentation prep) is what's left. See `README.md`'s status table and
+`PLAN.md` for phase status.
 
 ## Rules
 - After each phase, explicitly test the output, sanity-check assumptions,
