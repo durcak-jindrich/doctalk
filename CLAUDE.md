@@ -104,17 +104,18 @@ order and phase scope: `PLAN.md`.
 - `scripts/manual_smoke_test*.py` — manual end-to-end walkthroughs used to
   verify each phase (ingestion/retrieval, then grounded answering)
 - `tests/unit/`, `tests/integration/` — fast fake-LLM suite + opt-in
-  `live`-marked tests
+  `live`-marked tests; `tests/golden.py` holds the fixture workspace and
+  golden Q&A set, shared with the Phase 9 evaluation
 - `docs/` — `assignment.md` (brief), `technical-decisions.md` (why),
   plus later: `security-limitations.md`, `governance-checklist.md`,
   `evaluation.md`, `azure-deployment.md`
 - `PLAN.md` — phased implementation plan (source of truth for build order)
 - `docker-compose.yml` / `Dockerfile` — local and containerized run paths
 
-As of now Phases 0–6 are built: the baseline runs locally end to end —
-upload, ask, cited answers, in the browser — with per-node timings and
-structured logs. See `README.md`'s status table and `PLAN.md` for phase
-status.
+As of now Phases 0–7 are built: the baseline runs locally end to end —
+upload, ask, cited answers, in the browser — with per-node timings, structured
+logs, and unit/integration/live test coverage. See `README.md`'s status table
+and `PLAN.md` for phase status.
 
 ## Rules
 - After each phase, explicitly test the output, sanity-check assumptions,

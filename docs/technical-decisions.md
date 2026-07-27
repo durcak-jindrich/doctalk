@@ -174,6 +174,31 @@ OpenRouter integration is the thing being checked. It asserts structure, not
 wording, so a model change doesn't break it; the failure modes a real
 provider won't produce on demand are covered offline against a stubbed SDK.
 
+## Testing strategy
+
+**The default loop spends no quota.** The fast suite fakes the `LLMClient`, so
+it needs no key, stays deterministic, and cannot be slowed or broken by a
+provider. `addopts = -m 'not live'` enforces it rather than trusting habit.
+
+**Faking the model is what makes retrieval testable.** An obedient fake that
+cites whatever it is given removes the model as a variable, so a golden-set
+failure is a retrieval or governance failure and nothing else. The trade-off
+is that a scripted refusal proves only plumbing — which is why one live test
+exists.
+
+**One live test, for the claim that cannot be faked.** Whether a real model
+declines a question the documents do not answer is the assertion the product
+rests on, and no offline test can make it. It asserts structure, never
+wording, so a model swap does not break it.
+
+**The golden set is shared with the evaluation.** `tests/golden.py` holds the
+fixture workspace and cases; the Phase 9 eval scores what the suite asserts,
+so there is one definition of a right answer.
+
+**Assertions are per-leg, not "either leg".** A hybrid retriever that had
+quietly become dense-only would still satisfy `dense_rank or lexical_rank`, so
+each leg is asserted on the retriever's own output, with a query suited to it.
+
 ## Agentic orchestration (LangGraph)
 
 Production `/ask` entry point, not an optional wrapper:

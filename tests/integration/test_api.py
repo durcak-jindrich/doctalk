@@ -106,6 +106,22 @@ def test_an_empty_file_is_rejected_with_a_readable_reason(client):
     assert "empty" in result["error"].lower()
 
 
+def test_a_file_with_no_extractable_text_is_rejected_not_silently_empty(client):
+    """The guarantee behind "scanned PDFs fail loudly".
+
+    A heading-only document parses to zero blocks by exactly the same route an
+    image-only PDF does, so it exercises the rejection without needing a scan
+    as a fixture. The failure mode this guards against is a document that
+    ingests "successfully" with nothing in it, then answers nothing forever.
+    """
+    response = upload(client, ("headings-only.md", b"# Just A Heading\n\n## And Another\n"))
+
+    (result,) = response.json()["results"]
+    assert result["status"] == "rejected"
+    assert "no extractable text" in result["error"].lower()
+    assert response.json()["workspace"]["used"] == 0
+
+
 def test_a_file_over_the_size_limit_is_rejected_before_it_is_parsed(client, monkeypatch):
     """The ceiling is a memory bound — parsing loads the whole file at once."""
     monkeypatch.setattr(settings, "max_upload_bytes", 512)

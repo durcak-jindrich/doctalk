@@ -5,10 +5,10 @@ Grounded Q&A over a small set of internal documents. Upload 1–5 files
 content, with citations back to the originating chunk/document. If nothing
 relevant is found, DocTalk says so instead of guessing.
 
-> **Status: baseline complete, instrumented (Phase 6 of `PLAN.md`).** Upload
-> → ask → cited answer runs end to end in the browser, with per-node timings
-> and structured logs. Azure IaC and the evaluation report are still to come —
-> see [Project status](#project-status).
+> **Status: baseline complete, instrumented, tested (Phase 7 of `PLAN.md`).**
+> Upload → ask → cited answer runs end to end in the browser, with per-node
+> timings and structured logs. Azure IaC and the evaluation report are still
+> to come — see [Project status](#project-status).
 
 Built as an interview case study; the brief is in
 [`docs/assignment.md`](docs/assignment.md).
@@ -138,8 +138,14 @@ to check: after changing `LLM_MODEL`, the adapter, or the grounding prompt,
 and once before a demo. Not on every commit, and not in the normal dev loop.
 
 ```bash
-uv run pytest -m live    # 1 real call; skips cleanly if no API key is set
+uv run pytest -m live    # 3 real calls; skips cleanly if no API key is set
 ```
+
+The end-to-end one (`tests/live/test_end_to_end_live.py`) ingests a document,
+retrieves against Postgres for real, and asks a question the document does not
+answer. That is the only place the *model's judgement* is tested: everywhere
+else the LLM is faked, so a refusal is scripted and shows only that refusals
+are plumbed through.
 
 It asserts structure only — that a real model answers with a citation that
 resolves, and that usage is captured — never particular wording, so it does
@@ -239,6 +245,7 @@ across hops.
 | `migrations/` | Versioned schema SQL + `apply.sh`, the psql runner the `migrate` service uses |
 | `scripts/reset_db.py` | Drop and replay all migrations — local dev only |
 | `scripts/manual_smoke_test*.py` | Manual phase-verification walkthroughs |
+| `tests/golden.py` | Fixture documents + golden Q&A set, shared with the eval |
 | `tests/` | Fake-LLM fast suite + opt-in live tests |
 | `docs/` | Brief, technical decisions, and (later) security/governance/eval |
 | `PLAN.md` | Phased build plan — source of truth for what's done vs pending |
@@ -294,9 +301,9 @@ headlines:
 
 ## Project status
 
-Tracking [`PLAN.md`](PLAN.md). Current: **Phase 6 — Observability
-instrumentation**. The baseline the brief asks for — upload, ask, cited
-answers, runs locally end to end — is complete and instrumented.
+Tracking [`PLAN.md`](PLAN.md). Current: **Phase 7 — Testing**. The baseline
+the brief asks for — upload, ask, cited answers, runs locally end to end — is
+complete, instrumented, and covered.
 
 | Phase | Status |
 |---|---|
@@ -307,7 +314,7 @@ answers, runs locally end to end — is complete and instrumented.
 | 4 — Agentic orchestration (LangGraph) | Done |
 | 5 — API + frontend | Done |
 | 6 — Observability instrumentation | Done |
-| 7 — Testing | Not started |
+| 7 — Testing | Done |
 | 8 — Azure readiness | Not started |
 | 9 — Evaluation | Not started |
 | 10 — Documentation (README finalization) | Not started |
