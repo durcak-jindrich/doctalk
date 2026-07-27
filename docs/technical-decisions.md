@@ -132,20 +132,25 @@ Key choices:
   unreliably. A `chunk_id`-shaped marker is still accepted and folded back.
 - **Validation proves resolution, not entailment** — that the cited chunk was
   retrieved and shown, not that it supports the claim. Faithfulness is
-  measured separately in Phase 9.
+  measured separately, by `docs/evaluation.md`'s substring check against a
+  known fact per golden case — real signal on a wrong number, none on a
+  right number reached by unsupported reasoning.
 - **An uncited answer counts as ungrounded**, or "don't cite anything" becomes
   a way around the validator.
-- **`MIN_RERANK_SCORE = -5.0` is provisional**, picked off observed
-  separation: covered questions score ≈ +7 to +9, in-domain-but-uncovered
-  ≈ −6, nonsense ≈ −11. Re-tuned in Phase 9, where false refusal is the
-  failure mode to watch.
+- **`MIN_RERANK_SCORE = -5.0`, evaluated in Phase 9 and kept.** Observed
+  separation on the golden set: answerable ≈ +2 to +9, off-topic ≈ −11 — wide
+  margin either side, so no evidence of the failure mode this value exists to
+  avoid (false-refusing an answerable question). A narrower band (≈ −10.5 to
+  −10.0) would additionally route one in-domain-but-uncovered case to the
+  model instead of the gate; not acted on with 6 scored cases —
+  `docs/evaluation.md` has the numbers.
 - **Prose brackets are ignored, not flagged** — only digit and `chunk_id`
   tokens count as citation attempts, so "[sic]" can't trigger a false
   refusal. A hallucinated `[policy.pdf]` then reads as prose, and is caught
   instead by the at-least-one-citation rule.
 - **`INSUFFICIENT_CONTEXT` anywhere in a reply is a refusal.** Accepted cost:
-  a partial answer that appends the token is refused wholesale. Revisit if
-  Phase 9 shows partial answers being lost.
+  a partial answer that appends the token is refused wholesale. Not observed
+  in the Phase 9 golden-set run.
 - **Per-attempt usage is accumulated**, since a retry costs real tokens that
   the observability panel would otherwise understate.
 - **`LLMClient` is synchronous**, matching sync retrieval, so `/ask` runs as
@@ -198,6 +203,34 @@ so there is one definition of a right answer.
 **Assertions are per-leg, not "either leg".** A hybrid retriever that had
 quietly become dense-only would still satisfy `dense_rank or lexical_rank`, so
 each leg is asserted on the retriever's own output, with a query suited to it.
+
+## Evaluation (Phase 9)
+
+**`scripts/evaluate.py` reuses the graph and the golden set — it is not a
+separate scoring harness.** Same `answer_question` entry point the API uses,
+same 7 cases the integration suite asserts on, so a metric in
+`docs/evaluation.md` describes production behaviour, not a parallel
+approximation of it.
+
+**Faithfulness is a substring match against a fact named per golden case**
+(`expect_answer_contains`), not an LLM-judge call. Cheap, deterministic, and
+honest about its limit: it catches a wrong number, not a right number reached
+by unsupported reasoning. An LLM judge would cost quota to buy a check that
+still isn't entailment — not worth it for a 7-case fixture.
+
+**Faithfulness and cost are only computed for `--live` runs.** Fake mode
+(`ObedientClient`) is real for everything upstream of the model — routing,
+retrieval, the relevance gate, governance — but its reply is scripted and its
+usage numbers are made up, so scoring either against it would only prove the
+script matches itself. The default (no `--live`) mode still writes a report,
+clearly marked, so the retrieval-side metrics can be re-checked for free
+after a retrieval change.
+
+**The `MIN_RERANK_SCORE` sensitivity table scores the gate's own job, not the
+final outcome.** "Correct" means a threshold's pass/refuse decision matches
+`refused_before_llm`, not `outcome` — an in-domain-but-uncovered question is
+*supposed* to reach the model and be declined there, so a threshold that lets
+it through is not being penalized for that.
 
 ## Agentic orchestration (LangGraph)
 

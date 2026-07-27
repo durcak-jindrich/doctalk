@@ -5,11 +5,13 @@ Grounded Q&A over a small set of internal documents. Upload 1–5 files
 content, with citations back to the originating chunk/document. If nothing
 relevant is found, DocTalk says so instead of guessing.
 
-> **Status: baseline complete, instrumented, tested, Azure-ready (Phase 8 of
-> `PLAN.md`).** Upload → ask → cited answer runs end to end in the browser,
-> with per-node timings, structured logs, and AAD-auth/Key Vault/Container
-> Apps IaC written and validated. The evaluation report is still to come —
-> see [Project status](#project-status).
+> **Status: baseline complete, instrumented, tested, Azure-ready, evaluated
+> (Phase 9 of `PLAN.md`).** Upload → ask → cited answer runs end to end in
+> the browser, with per-node timings, structured logs, AAD-auth/Key
+> Vault/Container Apps IaC, and a golden-set evaluation report
+> ([`docs/evaluation.md`](docs/evaluation.md)). Final documentation and
+> presentation prep are what's left — see
+> [Project status](#project-status).
 
 Built as an interview case study; the brief is in
 [`docs/assignment.md`](docs/assignment.md).
@@ -22,6 +24,7 @@ Built as an interview case study; the brief is in
 - [Demo script](#demo-script)
 - [LLM calls in tests](#llm-calls-in-tests)
 - [Observability](#observability)
+- [Evaluation](#evaluation)
 - [Azure deployment](#azure-deployment)
 - [Repository layout](#repository-layout)
 - [Key decisions & assumptions](#key-decisions--assumptions)
@@ -228,6 +231,25 @@ header and echoed in the answer payload — so a question about one answer leads
 straight to its log lines. An inbound `X-Trace-Id` is honoured for correlation
 across hops.
 
+## Evaluation
+
+`scripts/evaluate.py` scores the golden Q&A set (`tests/golden.py`, the same
+7 cases the integration suite asserts on) and writes
+[`docs/evaluation.md`](docs/evaluation.md) — routing/outcome/retrieval
+accuracy, retrieval-leg contribution, latency breakdown, cost, and a
+`MIN_RERANK_SCORE` sensitivity sweep.
+
+```bash
+docker compose up -d db
+uv run python -m scripts.evaluate           # ObedientClient — no LLM calls, no quota spent
+uv run python -m scripts.evaluate --live    # real OpenRouter model, ~5-10 calls
+```
+
+Only `--live` produces a meaningful faithfulness or cost number — a scripted
+reply can't demonstrate a model's judgement. The committed `docs/evaluation.md`
+is a `--live` run; see [LLM calls in tests](#llm-calls-in-tests) for why that
+command costs quota deliberately rather than by accident.
+
 ## Azure deployment
 
 Container Apps + Azure Database for PostgreSQL + Key Vault + Entra ID (AAD),
@@ -267,9 +289,10 @@ allow-list) in [`docs/azure-deployment.md`](docs/azure-deployment.md).
 | `migrations/` | Versioned schema SQL + `apply.sh`, the psql runner the `migrate` service uses |
 | `scripts/reset_db.py` | Drop and replay all migrations — local dev only |
 | `scripts/manual_smoke_test*.py` | Manual phase-verification walkthroughs |
+| `scripts/evaluate.py` | Phase 9 evaluation — scores the golden set, writes `docs/evaluation.md` |
 | `tests/golden.py` | Fixture documents + golden Q&A set, shared with the eval |
 | `tests/` | Fake-LLM fast suite + opt-in live tests |
-| `docs/` | Brief, technical decisions, Azure deployment, and (later) security/governance/eval |
+| `docs/` | Brief, technical decisions, Azure deployment, evaluation, and (later) security/governance |
 | `infra/` | Bicep IaC: Container Apps, Postgres, Key Vault, managed identity, ACR |
 | `.github/workflows/` | Example CI (lint/test) and manual deploy workflows |
 | `PLAN.md` | Phased build plan — source of truth for what's done vs pending |
@@ -310,10 +333,17 @@ headlines:
   to retrieval; it still answers, just from ranked chunks.
 - **Citation validation proves resolution, not entailment**: it guarantees the
   cited chunk was retrieved and shown to the model, not that it supports the
-  claim. Faithfulness is measured in the Phase 9 evaluation.
-- **`MIN_RERANK_SCORE` is a tuned heuristic** (`-5.0`, from observed
-  separation: covered ≈ +7 to +9, in-domain-but-uncovered ≈ −6, nonsense ≈
-  −11). Too high and answerable questions get refused; re-tuned in Phase 9.
+  claim. [`docs/evaluation.md`](docs/evaluation.md) checks faithfulness with a
+  substring match against a known fact per question — real signal on a wrong
+  number, no signal on a right number reached by unsupported reasoning.
+- **`MIN_RERANK_SCORE` (`-5.0`) is a tuned heuristic, evaluated and kept.**
+  Observed separation on the golden set: answerable ≈ +2 to +9,
+  off-topic ≈ −11 — wide margin either side, so no evidence of the failure
+  mode this value was chosen to avoid (false-refusing an answerable
+  question). The evaluation also found a narrow band (≈ −10.5 to −10.0) that
+  would additionally route one in-domain-but-uncovered case to the model
+  instead of the gate; not acted on with 6 scored cases. Detail:
+  [`docs/evaluation.md`](docs/evaluation.md).
 - **Prompt-injection resistance is best-effort.** No prompt-level defence is
   airtight; the real containment is that a successful injection still cannot
   manufacture a valid citation.
@@ -327,13 +357,16 @@ headlines:
 
 ## Project status
 
-Tracking [`PLAN.md`](PLAN.md). Current: **Phase 8 — Azure readiness**. The
+Tracking [`PLAN.md`](PLAN.md). Current: **Phase 9 — Evaluation**. The
 baseline the brief asks for — upload, ask, cited answers, runs locally end to
 end — is complete, instrumented, and covered; the Azure deployment path
 (auth, secrets, IaC) is written and validated, not deployed against a live
 subscription — see [`docs/azure-deployment.md`](docs/azure-deployment.md)
 for the one known gap (`pg_search` isn't installable on Azure's managed
-Postgres) before that changes.
+Postgres) before that changes. The golden-set evaluation
+([`docs/evaluation.md`](docs/evaluation.md)) found 100% routing/outcome/
+retrieval/faithfulness on a live run — see its own caveats on sample size
+before reading that as more than "the pipeline behaves as intended".
 
 | Phase | Status |
 |---|---|
@@ -346,7 +379,7 @@ Postgres) before that changes.
 | 6 — Observability instrumentation | Done |
 | 7 — Testing | Done |
 | 8 — Azure readiness | Done |
-| 9 — Evaluation | Not started |
+| 9 — Evaluation | Done |
 | 10 — Documentation (README finalization) | Not started |
 | 11 — Presentation prep | Not started |
 
@@ -355,5 +388,6 @@ Postgres) before that changes.
 - [`docs/assignment.md`](docs/assignment.md) — original brief
 - [`docs/technical-decisions.md`](docs/technical-decisions.md) — why each choice
 - [`docs/azure-deployment.md`](docs/azure-deployment.md) — Azure deployment walkthrough
+- [`docs/evaluation.md`](docs/evaluation.md) — golden-set evaluation report
 - [`PLAN.md`](PLAN.md) — phased build plan
 - [`CLAUDE.md`](CLAUDE.md) — working project conventions

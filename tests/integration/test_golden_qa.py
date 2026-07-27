@@ -14,44 +14,17 @@ import re
 import pytest
 
 from app.graph import answer_question, build_answer_graph
-from app.llm import LLMClient, LLMResponse, TokenUsage
+from app.llm import LLMResponse
 from app.retrieval import HybridRerankRetriever
-from app.storage import get_connection, ingest_document
-from app.synthesis import REFUSAL_TOKEN, RefusalReason
-from tests.golden import DOCUMENTS, GOLDEN, GoldenCase
-
-
-class ObedientClient(LLMClient):
-    """Always answers, always citing source [1] — or declines when told to.
-
-    Stands in for a perfectly-behaved model so retrieval and governance are
-    the only things that can fail a case.
-    """
-
-    model = "fake/obedient"
-
-    def __init__(self, *, decline: bool = False):
-        self.decline = decline
-        self.call_count = 0
-
-    def complete(self, messages, *, temperature=None, max_tokens=None) -> LLMResponse:
-        self.call_count += 1
-        return LLMResponse(
-            text=REFUSAL_TOKEN if self.decline else "According to the sources, yes [1].",
-            model=self.model,
-            usage=TokenUsage(prompt_tokens=500, completion_tokens=25, cost_usd=0.00004),
-            latency_ms=400.0,
-        )
+from app.storage import get_connection
+from app.synthesis import RefusalReason
+from tests.golden import GOLDEN, GoldenCase, ObedientClient, ingest_golden_workspace
 
 
 @pytest.fixture(scope="module")
 def workspace(request):
     """Ingest the golden documents once for the whole module."""
-    from app.storage import reset_schema
-
-    reset_schema()
-    for filename, content in DOCUMENTS.items():
-        ingest_document(filename, content)
+    ingest_golden_workspace()
 
 
 def ask(case: GoldenCase, client: ObedientClient):
