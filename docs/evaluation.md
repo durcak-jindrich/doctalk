@@ -1,8 +1,10 @@
 # Evaluation Report
 
-Generated 2026-07-27 11:47 UTC by `scripts/evaluate.py`, mode: **live (inclusionai/ling-3.0-flash:free)**, 7/7 golden cases scored.
+> **Generated file — do not edit by hand.** Change `scripts/evaluate.py` instead.
 
-Regenerate with `uv run python -m scripts.evaluate` (no quota spent) or `uv run python -m scripts.evaluate --live` (real answers — see caveat below). The golden set is 7 questions (`tests/golden.py`), shared with `tests/integration/test_golden_qa.py`; treat every rate below as illustrative, not statistically robust — the sample is a case study fixture, not a benchmark.
+Generated 2026-07-27 11:47 UTC, mode: **live (inclusionai/ling-3.0-flash:free)**, 7/7 golden cases scored.
+
+Regenerate with `uv run python -m scripts.evaluate` (fake LLM, no quota spent) or `uv run python -m scripts.evaluate --live` (real answers — the only mode where faithfulness and cost mean anything). The golden set is 7 cases in `tests/golden.py`, shared with `tests/integration/test_golden_qa.py`. Every rate below is illustrative, not statistically robust — a case-study fixture, not a benchmark.
 
 ## Case results
 

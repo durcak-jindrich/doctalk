@@ -28,7 +28,7 @@ jobs:
       - name: Test
         # No OPENROUTER_API_KEY is set here on purpose: `uv run pytest` never
         # makes a live LLM call (addopts = -m 'not live' in pyproject.toml —
-        # see docs/technical-decisions.md's testing-strategy section), so CI
+        # see docs/technical-decisions.md, "Testing & evaluation"), so CI
         # spends no OpenRouter quota on every push.
         run: uv run pytest
 

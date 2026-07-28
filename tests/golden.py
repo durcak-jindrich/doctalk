@@ -15,48 +15,21 @@ only shows the refusal is plumbed through. That judgement is what the
 """
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal
 
 from app.llm import LLMClient, LLMResponse, Message, TokenUsage
 from app.storage import ingest_document, reset_schema
 from app.synthesis import REFUSAL_TOKEN
 
+SAMPLES_DIR = Path(__file__).resolve().parent.parent / "samples"
+
+#: Read from `samples/` rather than inlined here, so the README's demo script
+#: uploads exactly the corpus this set asserts on and `docs/evaluation.md`
+#: reports on. Editing a sample file changes what the cases below expect.
 DOCUMENTS: dict[str, bytes] = {
-    "hr-policy.md": b"""# HR Policy
-
-## Vacation
-
-Full-time employees accrue fifteen days of paid vacation per calendar year.
-Requests must reach a line manager at least two weeks in advance.
-
-## Sick Leave
-
-Employees may take up to ten days of paid sick leave per year. A doctor's note
-is required from the fourth consecutive day of absence.
-""",
-    "it-security.md": b"""# IT Security Standard
-
-## Passwords
-
-Passwords must be at least twelve characters long and rotated every ninety
-days. Reuse across internal systems is prohibited.
-
-## Devices
-
-Company laptops require full-disk encryption before issue. Report a lost or
-stolen device to the helpdesk within twenty-four hours.
-""",
-    "product-faq.md": b"""# Product FAQ
-
-## Refunds
-
-Customers may request a refund within thirty days of purchase, provided the
-product is unused and in its original packaging.
-
-## Shipping
-
-Standard delivery takes three to five business days.
-""",
+    name: (SAMPLES_DIR / name).read_bytes()
+    for name in ("hr-policy.md", "it-security.md", "product-faq.md")
 }
 
 

@@ -241,14 +241,17 @@ def render_report(results: list[CaseResult], *, live: bool, model: str | None) -
     lines = [
         "# Evaluation Report",
         "",
-        f"Generated {generated} by `scripts/evaluate.py`, mode: **{mode}**, "
+        "> **Generated file — do not edit by hand.** Change `scripts/evaluate.py` instead.",
+        "",
+        f"Generated {generated}, mode: **{mode}**, "
         f"{len(results)}/{len(GOLDEN)} golden cases scored.",
         "",
-        "Regenerate with `uv run python -m scripts.evaluate` (no quota spent) or "
-        "`uv run python -m scripts.evaluate --live` (real answers — see caveat below). "
-        "The golden set is 7 questions (`tests/golden.py`), shared with "
-        "`tests/integration/test_golden_qa.py`; treat every rate below as illustrative, "
-        "not statistically robust — the sample is a case study fixture, not a benchmark.",
+        "Regenerate with `uv run python -m scripts.evaluate` (fake LLM, no quota spent) "
+        "or `uv run python -m scripts.evaluate --live` (real answers — the only mode "
+        f"where faithfulness and cost mean anything). The golden set is {len(GOLDEN)} "
+        "cases in `tests/golden.py`, shared with `tests/integration/test_golden_qa.py`. "
+        "Every rate below is illustrative, not statistically robust — a case-study "
+        "fixture, not a benchmark.",
         "",
     ]
 
