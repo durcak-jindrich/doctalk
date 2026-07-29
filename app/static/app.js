@@ -255,7 +255,19 @@ function renderSources(citations) {
   const wrap = el("div", "sources");
   wrap.appendChild(el("div", "sources__label", `${citations.length} source${citations.length === 1 ? "" : "s"}`));
 
+  // Two chunks off the same page share a label. Number them so the list never
+  // shows the same provenance twice; a lone source keeps the plain label.
+  const tally = new Map();
+  for (const c of citations) tally.set(c.label, (tally.get(c.label) ?? 0) + 1);
+  const nth = new Map();
+
   for (const citation of citations) {
+    let label = citation.label;
+    if (tally.get(label) > 1) {
+      const n = (nth.get(label) ?? 0) + 1;
+      nth.set(label, n);
+      label += ` · excerpt ${n} of ${tally.get(label)}`;
+    }
     const source = el("div", "source");
     source.dataset.marker = String(citation.marker);
 
@@ -263,7 +275,7 @@ function renderSources(citations) {
     toggle.type = "button";
     toggle.setAttribute("aria-expanded", "false");
     toggle.appendChild(el("span", "source__marker", String(citation.marker)));
-    toggle.appendChild(el("span", "source__label", citation.label));
+    toggle.appendChild(el("span", "source__label", label));
     toggle.appendChild(icon(ICON_CHEVRON, "source__chevron"));
 
     const body = el("div", "source__body");
@@ -296,7 +308,7 @@ function renderSources(citations) {
 function renderObservability(obs) {
   const wrap = el("div", "obs");
 
-  const toggle = el("button", "obs__toggle", "Under the hood");
+  const toggle = el("button", "obs__toggle", "Observability details");
   toggle.type = "button";
   toggle.setAttribute("aria-expanded", "false");
 

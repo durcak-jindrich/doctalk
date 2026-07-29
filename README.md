@@ -48,7 +48,7 @@ For fresh setup:
    DocTalk refuses and says why. Styled as a normal outcome, not a failure.
 4. **Summarize** — *"Summarize the documents"* routes to the summarize tool;
    the graph path shows `gather_summary_sources` instead of `retrieve`.
-5. **Open "Under the hood"** — route, latency, tokens, cost, per-node timings.
+5. **Open "Observability details"** — route, latency, tokens, cost, per-node timings.
    A repeated `draft → govern` pair means the citation validator rejected the
    first draft and sent it back.
 
@@ -145,7 +145,7 @@ uv run pytest tests/unit  # unit tests alone need nothing running
 
 Every answer carries its own trace, in the UI and in the logs.
 
-**UI** — "Under the hood" per answer: route, total vs. LLM vs. retrieval time,
+**UI** — "Observability details" per answer: route, total vs. LLM vs. retrieval time,
 tokens, cost, and the graph path with a per-node timing bar and verdict. A
 repeated `draft → govern` pair is highlighted as a corrective retry.
 

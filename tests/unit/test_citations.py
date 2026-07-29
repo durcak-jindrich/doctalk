@@ -73,7 +73,7 @@ def test_citation_carries_provenance_for_the_ui():
     )
     citation = validate_citations("Answer [1].", [chunk]).citations[0]
 
-    assert citation.label == "handbook.pdf > Leave > Sick Leave (p. 4)"
+    assert citation.label == "handbook.pdf > Leave > Sick Leave (page 4)"
     assert citation.page_number == 4
     assert citation.dense_rank == 1
 

@@ -163,7 +163,7 @@ def test_pdf_extracts_text_and_tags_every_block_with_its_page():
 
     assert blocks, "no text extracted from a PDF that has a text layer"
     assert all(b.page_number is not None for b in blocks)
-    # 1-based, and non-decreasing: a citation's "(p. 4)" has to mean page 4.
+    # 1-based, and non-decreasing: a citation's "(page 4)" has to mean page 4.
     assert min(b.page_number for b in blocks) == 1
     pages = [b.page_number for b in blocks]
     assert pages == sorted(pages)

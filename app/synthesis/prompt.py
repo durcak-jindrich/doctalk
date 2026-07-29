@@ -49,7 +49,7 @@ else.\
 
 
 def source_label(chunk: RetrievedChunk) -> str:
-    """Human-readable provenance: "handbook.pdf > Leave > Sick Leave (p. 4)".
+    """Human-readable provenance: "handbook.pdf > Leave > Sick Leave (page 4)".
 
     The `chunk_id` stays the machine-facing identifier; this is what a reader
     (and the citation chip in the UI) actually needs to find the passage.
@@ -58,7 +58,7 @@ def source_label(chunk: RetrievedChunk) -> str:
     if chunk.section_path:
         label += " > " + " > ".join(chunk.section_path)
     if chunk.page_number is not None:
-        label += f" (p. {chunk.page_number})"
+        label += f" (page {chunk.page_number})"
     return label
 
 

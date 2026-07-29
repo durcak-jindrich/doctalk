@@ -1,6 +1,9 @@
-/* DocTalk — light/dark aware, no build step, no external assets. */
+/* DocTalk — light only, no build step, no external assets. */
 
 :root {
+  /* Pins form controls, scrollbars and caret to light too, so a reader whose
+     OS is in dark mode gets one consistent surface rather than a mix. */
+  color-scheme: light;
   --bg: #f6f7f9;
   --surface: #ffffff;
   --surface-2: #f1f3f6;
@@ -18,26 +21,6 @@
   --radius: 12px;
   --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 4px 12px rgba(16, 24, 40, .05);
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0f1115;
-    --surface: #171a20;
-    --surface-2: #1e222a;
-    --border: #2a2f39;
-    --text: #e7e9ee;
-    --muted: #98a2b3;
-    --accent: #7d9dff;
-    --accent-soft: #1b2440;
-    --ok: #5ed3a5;
-    --ok-soft: #142a22;
-    --warn: #e8b866;
-    --warn-soft: #2b2416;
-    --danger: #f28b82;
-    --danger-soft: #2d1a19;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 14px rgba(0, 0, 0, .3);
-  }
 }
 
 * { box-sizing: border-box; }
