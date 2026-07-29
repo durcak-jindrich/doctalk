@@ -1,0 +1,14 @@
+# Deny by default: the build needs four things, and everything else is context
+# the daemon uploads and never uses (`.venv/` alone is ~1 GB). Listing what is
+# allowed rather than what is banned means a new stray file — a dump, a
+# notebook, a second `.env` — is excluded until someone opts it in.
+*
+
+!pyproject.toml
+!uv.lock
+!app/
+!scripts/
+
+# Build artefacts that live inside the allowed directories.
+**/__pycache__/
+**/*.pyc

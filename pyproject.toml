@@ -18,8 +18,24 @@ dependencies = [
     "python-multipart>=0.0.32",
     "sentence-transformers>=5.6.1",
     "tiktoken>=0.13.0",
+    # Transitive (via sentence-transformers), declared only so the CPU-index
+    # pin below applies — `tool.uv.sources` is ignored for indirect deps.
+    "torch>=2.13.0",
     "uvicorn[standard]>=0.51.0",
 ]
+
+# torch from PyPI drags the whole CUDA stack (cuDNN, NCCL, cuBLAS, Triton —
+# ~3 GB) onto Linux, and DocTalk embeds on CPU. The CPU index is torch's own,
+# same version, same wheels minus the GPU runtime. Marked `sys_platform ==
+# 'linux'` because the macOS wheels have no CUDA dependencies to begin with
+# and are not published there.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
 
 [dependency-groups]
 dev = [

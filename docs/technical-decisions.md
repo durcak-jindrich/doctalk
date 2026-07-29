@@ -178,7 +178,8 @@ shape:
   one.
 - **Static HTML/CSS/vanilla JS, no build step and no CDN** — nothing to fail at
   demo time. Drag/drop upload with a slot indicator, citations as expandable
-  chips, designed empty/error states, light and dark.
+  chips, designed empty/error states. One light surface, pinned with
+  `color-scheme`, so an OS in dark mode cannot half-restyle the form controls.
 - **A refusal is styled as a calm, deliberate outcome**, not an error — it is
   the feature the brief is really asking for.
 - **Document and model text is inserted as a text node, never as HTML.**
@@ -245,6 +246,19 @@ shape:
   documented for a faster dev loop.
 - **Container Apps, not App Service or AKS** — fits a containerized
   FastAPI + LangGraph workload better than the former, simpler than the latter.
+- **CPU-only torch wheels** (`pytorch-cpu` index, `sys_platform == 'linux'`).
+  PyPI's Linux torch drags in the whole CUDA stack — cuDNN, NCCL, cuBLAS,
+  Triton, ~3 GB — for a workload that embeds on CPU. Same version, no GPU
+  runtime: the image went 5.26 GB → 1.43 GB. Costs one redundant-looking
+  `torch` dependency, because `tool.uv.sources` is ignored for transitive ones.
+- **Both models and the tiktoken table are baked into the image**, with
+  `HF_HUB_OFFLINE=1`. A cold container used to download ~180 MB from
+  huggingface.co inside the lifespan hook before it could serve; now it boots
+  in ~9s with no egress beyond the LLM provider. Trade: +180 MB, and pointing
+  `EMBEDDING_MODEL` at a model that was not baked in means unsetting the flag.
+- **`.dockerignore` is an allowlist, not a denylist.** Four paths are opted in,
+  everything else is excluded — which keeps `.venv/` (1 GB) and `.git/` out of
+  the build context and `.env` unreachable from any `COPY` added later.
 - **Azure Database for PostgreSQL Flexible Server + `pgvector`.** `pg_search`
   is not allow-listed there, so the current schema does not deploy clean;
   `infra/modules/postgres.bicep` says so rather than pretending otherwise.
