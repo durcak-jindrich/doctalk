@@ -42,6 +42,9 @@ dev = [
     "httpx>=0.28.1",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
+    # Browsers are a separate ~120 MB download (`uv run playwright install
+    # chromium`); tests/e2e/ skips itself when they are missing.
+    "pytest-playwright>=0.7.1",
     "ruff>=0.16.0",
 ]
 

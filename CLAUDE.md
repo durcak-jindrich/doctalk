@@ -17,8 +17,9 @@ rules for working in the repo.
 | Install | `uv sync` |
 | Run (Docker, app + ParadeDB) | `docker compose up --build` |
 | Run (API only, needs Postgres) | `uv run uvicorn app.main:app --reload` |
-| Test — never calls an LLM (`tests/integration/` needs `docker compose up -d db`) | `uv run pytest` |
+| Test — never calls an LLM (`tests/integration/`, `tests/e2e/` need `docker compose up -d db`) | `uv run pytest` |
 | Test live LLM — opt-in, spends quota | `uv run pytest -m live` |
+| Browser for `tests/e2e/` — once, else it skips | `uv run playwright install chromium` |
 | Lint / format | `uv run ruff check .` / `uv run ruff format .` |
 
 Python is pinned to 3.12 (`sentence-transformers` has no 3.14 wheel).

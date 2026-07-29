@@ -222,6 +222,17 @@ shape:
   against a stubbed SDK.
 - **Assertions are per-leg, not "either leg"** — a hybrid retriever that had
   quietly become dense-only would still satisfy `dense_rank or lexical_rank`.
+- **The browser journey (`tests/e2e/`) is one test parametrized over fake and
+  live**, not two suites. The default run costs nothing and proves the
+  plumbing — each parser reaching the UI, citations that open the passage they
+  point at, an off-topic question refused before any LLM call; `-m live` runs
+  the identical journey where the answer must contain the fact and the model
+  itself must decline the fabrication trap. Uvicorn runs in-process, so
+  `answer_graph` can be overridden while Chromium drives the app over HTTP.
+- **Its answer timeout is derived from the provider settings**, not picked: a
+  free-tier draft that spends its retry budget can legitimately take two
+  minutes, and a hardcoded guess turns that into a red test for a working
+  system.
 - **The evaluation reuses the graph and the golden set**, not a parallel scoring
   harness: same `answer_question` entry point, same cases the integration suite
   asserts on, so a metric describes production behaviour.

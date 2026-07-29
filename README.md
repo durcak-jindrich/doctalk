@@ -135,11 +135,18 @@ Why each was built this way:
 ## Testing
 
 ```bash
-docker compose up -d db   # tests/integration/ needs a real Postgres
-uv run pytest             # fast suite: no LLM calls, no API key, deterministic
-uv run pytest -m live     # 3–4 real OpenRouter calls; skips cleanly without a key
-uv run pytest tests/unit  # unit tests alone need nothing running
+docker compose up -d db             # tests/integration/ and tests/e2e/ need a real Postgres
+uv run playwright install chromium  # once — tests/e2e/ skips itself without a browser
+uv run pytest                       # fast suite: no LLM calls, no API key, deterministic
+uv run pytest -m live               # ~10 real OpenRouter calls; skips cleanly without a key
+uv run pytest tests/unit            # unit tests alone need nothing running
 ```
+
+`tests/e2e/` is the demo script in a browser: it empties the workspace through
+the UI, uploads one document per format, asks a question of each and opens the
+citations, then asks something the corpus does not cover and checks the
+refusal. Fake model by default, the real one under `-m live` — where the
+answers themselves are asserted. It resets the local workspace.
 
 ## Observability
 
