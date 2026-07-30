@@ -124,13 +124,19 @@ docker build -t <acrLoginServer>/doctalk:latest .
 docker push <acrLoginServer>/doctalk:latest
 ```
 
-**Apply the schema** to the new server — a manual step today, mirroring the
-local `migrate` service, and blocked on the `pg_search` question above:
+**Apply the schema** to the new server — a manual step today, and blocked on
+the `pg_search` question above. It runs `migrations/apply.sh`, the same runner
+the local `migrate` service uses, so migrations stay tracked and checksummed
+rather than being replayed by hand:
 
 ```bash
-psql "$(az deployment group show -g doctalk-dev -n main \
-  --query properties.outputs.postgresFqdn.value -o tsv)" \
-  -f migrations/0001_initial_schema.sql
+FQDN=$(az deployment group show -g doctalk-dev -n main \
+  --query properties.outputs.postgresFqdn.value -o tsv)
+
+# Azure Postgres requires TLS; the admin login and password are the ones
+# passed to the deployment. URL-encode the password if it has reserved characters.
+DATABASE_URL="postgresql://doctalkadmin:<password>@${FQDN}:5432/doctalk?sslmode=require" \
+  bash migrations/apply.sh
 ```
 
 ## Secrets and identity
@@ -167,7 +173,7 @@ psql "$(az deployment group show -g doctalk-dev -n main \
 |---|---|
 | `ts_rank` lexical fallback | Blocks a real deployment, not a nice-to-have (see above) |
 | Network isolation | Postgres uses the `AllowAzureServices` firewall rule, not VNet integration + private endpoint. Wrong for production data |
-| Migration automation | Schema application is a manual `psql` step, not a Container Apps Job triggered by deploy |
+| Migration automation | Schema application is a manual `apply.sh` run, not a Container Apps Job triggered by deploy |
 | Custom domain / WAF | Default `*.azurecontainerapps.io` ingress, as-is |
 | Scope/role authorization | Token validation checks `aud`/`iss` only; every valid token can use the whole API — matches the single-workspace model |
 | `/docs` stays open with `AUTH_ENABLED=true` | Registered on `app`, not on the routers `verify_token` guards. Exposes the API shape, not data; `docs_url=None` is a one-line fix |

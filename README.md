@@ -173,7 +173,7 @@ uv run python -m scripts.evaluate --live   # real model, ~5–10 calls
 ## Azure deployment
 
 Container Apps + Azure Database for PostgreSQL + Key Vault + Entra ID, via
-Bicep in `infra/`. **Written and syntax-checked by `az bicep build` in CI.
+Bicep in `infra/`. **Written and syntax-checked** by `az bicep build` in CI.
 Walkthrough, prerequisites and gaps:
 [`docs/azure-deployment.md`](docs/azure-deployment.md).
 
