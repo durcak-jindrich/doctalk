@@ -63,8 +63,9 @@ What follows is what that implies — not a claim it is production-ready.
 
 ## Secrets
 
-- **Local** — `.env`, gitignored, never committed. `.env.example` documents the
-  shape with no real values.
+- **Local** — `.env`, gitignored, never committed. `.env.example` carries only
+  the variables with no sensible default, with no real values; `app/config.py`
+  is the authoritative list of tunables and defaults.
 - **Azure** — Key Vault via the Container App's user-assigned managed identity
   (`app/config.py`): no client secret, no admin password reachable from the app.
   Detail: [`azure-deployment.md`](azure-deployment.md#secrets-and-identity).
