@@ -152,8 +152,8 @@ psql "$(az deployment group show -g doctalk-dev -n main \
 
 `.github/workflows/`, both illustrative — nothing runs them on a schedule:
 
-- **`ci.yml`** — lint, fake-LLM test suite (no quota spent), `az bicep build`,
-  on every push/PR.
+- **`ci.yml`** — `az bicep build` on every push/PR. Lint and the test suite are
+  run locally, not in CI.
 - **`deploy.yml`** — manual (`workflow_dispatch`): build and push to ACR, then
   `validate` + `create` the deployment. Repository secrets required:
   `AZURE_CLIENT_ID`/`AZURE_TENANT_ID`/`AZURE_SUBSCRIPTION_ID` (the GitHub

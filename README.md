@@ -183,9 +183,9 @@ Walkthrough, prerequisites and gaps:
 - **Secrets** — with `AZURE_KEY_VAULT_URL` set, `app/config.py` loads
   `DATABASE_URL`/`OPENROUTER_API_KEY` from Key Vault via the Container App's
   user-assigned managed identity before `Settings` is built.
-- **CI/CD** — `.github/workflows/`: `ci.yml` (lint, fake-LLM tests,
-  `az bicep build`) on every push; `deploy.yml` (manual: build/push to ACR,
-  then deploy the template).
+- **CI/CD** — `.github/workflows/`: `ci.yml` (`az bicep build`) on every push;
+  `deploy.yml` (manual: build/push to ACR, then deploy the template). Lint and
+  tests run locally — see [Testing](#testing).
 
 ## Repository layout
 
