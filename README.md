@@ -16,7 +16,7 @@ a live subscription. Only presentation prep remains — see
 Requirements: Docker 
 
 ```bash
-cp .env.example .env          # add OPENROUTER_API_KEY — a free key works
+cp .env.example .env          # add OPENROUTER_API_KEY — a free tier key works
 docker compose up --build     # `migrate` applies migrations/ (~1s), then the app serves :8000
 ```
 
