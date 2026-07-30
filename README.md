@@ -8,8 +8,7 @@ guessing — that refusal is the feature, not an error path.
 **Status:** baseline plus all four stretch options are built (Phases 0–10 of
 [`PLAN.md`](PLAN.md)) — upload → ask → cited answer runs locally end to end,
 instrumented, tested and evaluated. The Azure path (AAD auth, Key Vault,
-Bicep IaC) is written and syntax-checked in CI but has never been deployed to
-a live subscription. Only presentation prep remains — see
+Bicep IaC) is written and syntax-checked in CI — see
 [Project status](#project-status).
 
 ## Quickstart
@@ -257,4 +256,3 @@ Known limitations:
 | 8 — Azure readiness (written, not deployed) | Done |
 | 9 — Evaluation | Done |
 | 10 — Documentation | Done |
-| 11 — Presentation prep | Not started |

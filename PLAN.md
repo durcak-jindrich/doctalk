@@ -24,7 +24,6 @@ retrieval before orchestration, orchestration before observability.
 | 8 | Azure readiness | Dockerfile, Bicep IaC, Key Vault/Managed Identity, AAD auth, `docs/azure-deployment.md`, example workflows. **Written and `az bicep build`-checked in CI, never deployed** | Done |
 | 9 | Evaluation | `scripts/evaluate.py` over the golden set: routing/outcome/retrieval/faithfulness rates, leg contribution, latency, cost, threshold sweep → `docs/evaluation.md` | Done |
 | 10 | Documentation | Consolidate README (architecture, demo, assumptions, limitations), `docs/security-limitations.md`, `docs/governance-checklist.md`, `CLAUDE.md` | Done |
-| 11 | Presentation prep | Non-technical narrative (problem → live demo → why answers are trustworthy) plus a technical appendix; rehearse against the demo script | Not started |
 
 **README is a baseline deliverable, not a Phase 10 artifact.** It was drafted
 at the end of Phase 5 and updated every phase since, so it never describes a
