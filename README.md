@@ -15,8 +15,7 @@ Bicep IaC) is written and syntax-checked in CI — see
 Requirements:
 
 1. Docker
-2. An [OpenRouter](https://openrouter.ai) account for LLM access — a free tier
-   key works, no credit required.
+2. An [OpenRouter](https://openrouter.ai) API key for LLM access — a free tier key works, no credit required.
 
 ```bash
 cp .env.example .env          # add OPENROUTER_API_KEY — a free tier key works
